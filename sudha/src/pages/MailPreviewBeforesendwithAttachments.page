@@ -1,0 +1,80 @@
+<apex:page extensions="SendMass_EventRegistered_Ppl_Extension" standardController="Contact" >
+<apex:pageMessages id="pbm" rendered="{!pgmsg}"> </apex:pageMessages>
+<script>
+        function checkAll(cb)
+        {
+            var inputElem = document.getElementsByTagName("input");
+            for(var i=0; i<inputElem.length; i++)
+            {
+                if(inputElem[i].id.indexOf("checkedone")!=-1)
+                inputElem[i].checked = cb.checked;
+            }
+        }
+    </script>
+
+    <apex:form >
+     <apex:actionRegion >
+   <apex:pageblock title="Template_Choosing_Label "  rendered="{!if($ObjectType.Contact.accessible&&isEmailTEmp,true, false)}">
+           
+           <apex:selectList value="{!EmailTemplateId}" size="1" multiselect="false">
+            <apex:selectOptions value="{!EmailTEmpaltesList}"/>
+         </apex:selectList><p/>
+                
+            <apex:commandButton value="Label_On_Button_for_further_process_after_template_choosing" action="{!ChooseEmailTemplate}" status="status"/>
+   </apex:pageblock>
+           <apex:pageblock rendered="{!if($ObjectType.Contact.accessible && $ObjectType.Contact.createable&&isContact,true, false)}" id="pb2" >
+        
+         
+    <div>
+  
+    Pageblock_Table_based_on_Status_selection&nbsp;&nbsp;&nbsp;
+       <apex:selectList value="{!EventStatus}" size="1" >
+            <apex:selectOptions value="{!Evenstatusdisp}"/>
+              <apex:actionSupport event="onchange" reRender="pb,out1" action="{!find}" status="status"/>
+ 
+        </apex:selectList><p/>  
+          
+      </div>
+      
+         <apex:commandButton value="Preview" action="{!Preview}"/>
+ 
+<apex:pageBlockTable value="{!EventRegistrationsList}" var="er" id="pb">
+
+<apex:column headerValue="Select All Records" >
+                        <apex:facet name="header">
+                         <apex:inputCheckbox >
+                             <apex:actionSupport event="onclick" onsubmit="checkAll(this)" reRender="pb"/>   </apex:inputCheckbox>
+                        </apex:facet>
+                        <apex:inputCheckbox value="{!er.selected}" id="checkedone">
+                        <apex:actionSupport event="onclick" reRender="pb"/>
+                      </apex:inputCheckbox>
+   </apex:column>
+                    
+<apex:column headerValue="{!$objecttype.Contact.fields.Name.label}">
+<apex:commandLink value="{!er.acc.name}" action="/{!er.acc.id}" />
+</apex:column>
+<apex:column headerValue="Attendee" >
+
+<apex:commandLink value="{!er.acc.name}" action="/{!er.acc.id}" />
+</apex:column>
+<apex:column headerValue=".Registration_Status_" value="{!er.acc.LeadSource}"  >
+ 
+</apex:column>
+</apex:pageBlockTable>
+ 
+       </apex:pageblock>
+        </apex:actionRegion>
+         <apex:outputpanel id="opnl"> Attachment::<apex:inputFile value="{!att.body}" fileName="{!att.name}"/>
+          <apex:commandButton title="Upload" action="{!upload}" value="Upload"/><BR/>
+          <apex:repeat value="{!attList}" var="att">
+              {!att.Name}<br/>
+          </apex:repeat>
+                      <apex:commandButton value="Send Mail" action="{!sendMail}" />
+                       </apex:outputpanel> 
+                         <apex:outputpanel id="statusMail" layout="block">
+                <strong><apex:outputtext value="{!response}"></apex:outputtext></strong>
+            </apex:outputpanel>
+     
+       
+           </apex:form>
+</apex:page>

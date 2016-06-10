@@ -1,0 +1,34 @@
+<apex:page controller="JSdisplaydateOnclick">
+<apex:form >
+<apex:pageBlock >
+<script>
+function fn()
+{
+document.getElementById('{!$Component.datee}').innerHTML = Date();
+exe();
+}
+</script>
+<apex:actionFunction name="exe" reRender="dateev" action="{!disp}"/>
+<apex:commandButton value="Click me to display Date and Time." onclick="fn();return false;"  >
+
+</apex:commandButton>
+<apex:outputPanel id="dateev" >
+  <apex:outputText id="datee"></apex:outputText></apex:outputPanel>
+  </apex:pageBlock>
+  </apex:form>
+</apex:page>
+<!---
+fine code
+-------------------
+-------->
+<!----------
+<apex:page controller="JSdisplaydateOnclick">
+<apex:form >
+<apex:commandButton value="Click me to display Date and Time."  action="{!disp}" reRender="datee" >
+
+</apex:commandButton>
+<apex:outputPanel id="datee">
+  <apex:outputText value="{!dtval}"></apex:outputText></apex:outputPanel>
+  </apex:form>
+</apex:page>
+------>

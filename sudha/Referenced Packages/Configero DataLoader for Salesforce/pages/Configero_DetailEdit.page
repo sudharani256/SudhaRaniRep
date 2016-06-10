@@ -1,0 +1,25 @@
+<apex:page controller="PowerLoader.Configero_DetailEdit" showHeader="false" sidebar="false" action="{!loadLayout}">
+<c:Configero_DetailEdit />
+<script>
+<apex:repeat value="{!forceDisableEditList}" var="fde">
+forceDisableEdit.push('{!JSENCODE(fde)}');
+</apex:repeat>
+$(function() {
+    if ({!saved}) {
+        pageSaved('{!obj.Id}');
+    }
+});
+</script>
+
+<apex:form styleClass="editForm {!objName}">
+<apex:pageMessages />
+<apex:pageBlock mode="edit" title="{!IF(obj.Id == null, 'New', 'Edit')} {!objName}" >
+<apex:pageBlockButtons location="top" >
+<apex:commandButton action="{!save}" value="Save" /><input type="button" class="btn" onclick="cancelLookupEdit('lookupEditDialog')" value="Cancel" /><apex:commandButton rendered="{!obj.Id != null}" action="{!saveAsNew}" value="Clone Record" />
+</apex:pageBlockButtons>
+
+<c:Configero_LayoutDisplay layoutDisplay="{!layoutDisplay}" />
+</apex:pageBlock>
+
+</apex:form>
+</apex:page>

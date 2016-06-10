@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<apex:page controller="PowerLoader.Configero_LookupAutocomplete" showHeader="false" sidebar="false" contentType="text/xml" action="{!doSearch}">
+<complete>
+<apex:repeat value="{!options}" var="o">
+<option value="{!HTMLENCODE(o.value)}">{!HTMLENCODE(o.label)}</option>
+</apex:repeat>
+</complete>
+</apex:page>

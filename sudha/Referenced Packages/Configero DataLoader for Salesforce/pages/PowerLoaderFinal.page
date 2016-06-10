@@ -1,0 +1,42 @@
+<apex:page >
+<c:Configero_Framework />
+<style type="text/css">
+    .message{ clear:both; font-size:12px; text-align:center;  }
+    .message i span{font-size:25px;font-weight:bold;color:#339933;}
+</style>
+<script>
+var finished = $.getUrlParam('finished');
+var opt = $.getUrlParam('opt');
+var ret = $.getUrlParam('ret');
+var opt_txt = '';
+switch(opt) {
+   case 'update':
+     opt_txt = 'Updated';
+     break;
+   case 'upsert':
+     opt_txt = 'Upserted';
+     break;
+   case 'delete':
+     opt_txt = 'Deleted';
+     break;
+   default:
+     opt_txt = 'Inserted';
+   }
+$(function(){
+    if(finished > 1){
+        $("#row").text("Rows");
+    }else{
+        $("#row").text("Row");
+    }
+    $("#number").text(finished);
+    $("#opt").text(opt_txt);
+ })
+</script>
+<apex:pageBlock title="Finished" helpTitle="Help" helpUrl="http://www.configero.com/products/dataloader/help">
+<apex:pageBlockButtons location="top">
+<input type="button" class="btn" onclick="document.location.href=ret" value="Upload Another File" />
+</apex:pageBlockButtons>
+<div class="message" style="width:60%; margin:0px auto; margin-bottom:200px; "><p><span id="number"></span> <span id="row"></span> <span id="opt"></span> successfully.</p></div>
+<c:Footer />
+</apex:pageBlock>
+</apex:page>

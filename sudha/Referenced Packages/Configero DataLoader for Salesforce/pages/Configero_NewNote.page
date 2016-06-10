@@ -1,0 +1,36 @@
+<apex:page showHeader="false" controller="PowerLoader.Configero_NewNote">
+<script src="{!URLFOR($Resource.domain_js)}"></script>
+
+<body onload="doLoad()">
+<script>
+var isSuccess = {!noteAdded};
+function doLoad() {
+    parent.CF_endProgress();
+    if (isSuccess) {
+      var g = parent['{!JSENCODE(grid)}'];
+      g.load_func(g);
+      parent.$('#{!JSENCODE(dialog)}').dialog('close');
+    }
+}
+</script>
+  
+  <apex:form >
+    <apex:pageMessages />
+
+    <apex:pageBlock title="">
+ 
+      <apex:pageBlockButtons location="top" rendered="{!okToLoad}">
+        <apex:commandButton action="{!save}" value="Save" onclick="parent.CF_beginProgress('Saving')" />
+      </apex:pageBlockButtons>
+ 
+      <apex:pageBlockSection showHeader="false" columns="1" rendered="{!okToLoad}">
+ 
+        <apex:inputField value="{!note.title}" />
+        <apex:inputField value="{!note.body}" style="width: 100%; height: 150px" />
+ 
+      </apex:pageBlockSection>
+ 
+    </apex:pageBlock>
+  </apex:form>
+</body>
+</apex:page>

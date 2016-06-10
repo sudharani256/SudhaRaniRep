@@ -1,0 +1,314 @@
+<apex:page showHeader="false" sidebar="false" controller="PowerLoader.PowerLoaderGrid" extensions="PowerLoader.Configero_GridApp,PowerLoader.PowerLoader_Funcs">
+<c:Configero_GridApp />
+<style type="text/css">
+  .title { font-weight:bold; }
+  .tr { line-height:25px;height:25px;padding-left:30px;}
+
+  div.gridbox td.changed_flag { font-weight: normal !important; background-image: url() !important; }
+</style>
+<script>
+var match_arr = parent.match_arr;
+var headerFields = parent.headerFields;
+var obj = parent.obj;
+var attachId = parent.attachId;
+var externalId = parent.getExternalId();
+var saveNullValues = parent.getInsertNullValues();
+var assignmentRule = parent.assignmentRule;
+var csvparsed_len = 0;
+
+var relMap = {};
+for (var i = 0; i < match_arr.length; i++) {
+	if (!match_arr[i]['rel_fld']) continue;
+	relMap[match_arr[i]['obj']] = match_arr[i]['rel_fld'];
+}
+
+SAVE_PAGE_SIZE = parent.getBatchSize();
+
+var successRowsAfterSave;
+
+dhtmlXGridObject.prototype.CF_saveChangesHandler = function(res, event) {
+  // start the next request
+  this.CF_sendBatchToSave();
+
+  var saveFlagColIndex = this.CF_indexByField['__error'];
+  var rec, cellObj;
+  if (event.status) {
+    var newIds = {};
+
+    var hasErrors = false;
+    for (var idd in res['success']) {
+        this.CF_numRecordsProcessed++;
+
+        rec = this.CF_getByIdFromBackingData(idd);
+        this.CF_setValueInCellRec(rec, saveFlagColIndex, '');
+        if (this.CF_isRowRendered(idd)) {
+            for (var j = 0; j < this.CF_fieldDef.length; j++) {
+                cellObj = this.cells(idd, j);
+                if ($(cellObj.cell).hasClass('changed_flag')) {
+                	this.CF_removeClassFromCell(cellObj, idd, j, 'changed_flag errored_flag');
+                }
+            }
+        }
+
+        successRowsAfterSave.push(idd);
+    }
+    for (var idd in res['errors']) {
+        this.CF_numRecordsProcessed++;
+        hasErrors = true;
+        rec = this.CF_getByIdFromBackingData(idd);
+        this.CF_setValueInCellRec(rec, saveFlagColIndex, res['errors'][idd][0]);
+        if (this.CF_isRowRendered(idd)) {
+            for (var j = 0; j < this.CF_fieldDef.length; j++) {
+                cellObj = this.cells(idd, j);
+                if ($(cellObj.cell).hasClass('changed_flag')) {
+                    this.CF_addClassToCell(cellObj, idd, j, 'errored_flag');
+                }
+            }
+        }
+    }
+    if (hasErrors) this.CF_errors.push(1);
+  } else {
+    // an anomoly occurred - find more info from this request and set all pending accounts in that list with this
+    var idds = getIDBatchForEvent(event);
+    for (var i = 0; i < idds.length; i++) {
+        this.CF_numRecordsProcessed++;
+        var idd = idds[i];
+        rec = this.CF_getByIdFromBackingData(idd);
+        this.CF_setValueInCellRec(rec, saveFlagColIndex, event.message);
+        if (this.CF_isRowRendered(idd)) {
+            for (var j = 0; j < this.CF_fieldDef.length; j++) {
+                cellObj = this.cells(idd, j);
+                if ($(cellObj.cell).hasClass('changed_flag')) {
+                    this.CF_addClassToCell(cellObj, idd, j, 'errored_flag');
+                }
+            }
+        }
+    }
+    this.CF_errors.push(1);
+  }
+  this.CF_handleBatchSaveComplete();
+}
+
+$(function(){
+    $(".condition").append("<div class='tr'><span class='title'>Operation Type: </span><span style='text-transform: capitalize' id='operation_type_lbl'>" + $.escapeHTML(parent.getOperationType()) + "</span><span style='padding-left: 40px' class='title'>Object: </span><span>" + $.escapeHTML(obj) + "</span><span style='padding-left: 40px' class='title'>Batch Size: </span><span>" + $.escapeHTML(parent.getBatchSize()) + "</span>"+($.escapeHTML(parent.getOperationType()) == 'insert' ? '' : '<span style="padding-left: 40px" class="title">Match on Field: </span>')+"<span>" + $.escapeHTML(externalId) + "</span></div></div>");
+
+    var __cf = new CF_layoutManager();
+   __cf.initRootLayout('layoutholder', 
+       {
+         'tmpl' : '2E',
+         'cells': {
+             'a' : {
+                 'text': 'Step 3 of 3: Verify Data and Process',
+                 'content': {
+                     type: 'html',
+                     html: 'condition_div'
+                 },
+                 'height': 60
+             },
+             'b': {
+                 'text': 'Records to Process',
+                 'var': 'gridObj'
+             }
+          }
+       }
+   );
+   CF_gridGetObjectMeta(obj, function(result) {
+     // make sure all fields are ones we care about
+     var objFieldsToCareAbout = {};
+     for (var i = 0; i < match_arr.length; i++) {
+        objFieldsToCareAbout[match_arr[i]['obj'].toUpperCase()] = 1;
+     }
+     var flds = [];
+     for (var i = 0; i < result.fields.length; i++) {
+        // make sure this field is one we care about
+        if (!objFieldsToCareAbout[result.fields[i].Name.toUpperCase()]) continue;
+        flds.push(result.fields[i]);
+        result.fields[i].CF_ForceWritable = true;
+        result.fields[i].IsUpdateable = true;
+        result.fields[i].IsCreateable = true;
+        result.fields[i].ReferenceTo = false; // so lookups become simple text fields
+     }
+     allFields[obj] = flds;
+     allFieldsByAPIName[obj] = {};
+     fieldsLoaded[obj] = [];
+     for (var i = 0; i < allFields[obj].length; i++) {
+         allFieldsByAPIName[obj][allFields[obj][i].Name] = allFields[obj][i];
+     }
+     var templateFields = buildDefaultTemplate({}, allFieldsByAPIName[obj], {allFields: 1});
+     var fieldDef = templateFieldsToFieldDef(fieldsLoaded[obj], templateFields, allFieldsByAPIName[obj], obj);
+
+      __cf._attachGrid(gridObj, {
+         'var': 'pgrid',
+         grid: {
+             fields: fieldDef,
+             allowFilter: true,
+             allowBulkEdit : true,
+             'toolbar': {
+                items: [
+                 {
+                     type: "button",
+                     id: "Save",
+                     img: "Configero/save.png",
+                     tooltip: 'Save',
+                     onClick: function(grid) {
+                        successRowsAfterSave = [];
+                        if (grid.CF_dataSequence.length == 0) {
+                        	grid.callEvent('CF_onSaveComplete', [true]);
+                        	return;
+                        }
+                        if (!confirm('You are about to ' + parent.getOperationType() + ' ' + grid.CF_getTotalRecordCount() + ' record(s).  Continue?')) return;
+                        grid.CF_saveChanges();
+                     }
+                 },
+                 {
+                   type: "button",
+                   id: "delete",
+                   img: "Configero/delete.png",
+                   tooltip: 'Delete',
+                   onClick: function(grid) {
+                       var prevC = grid.CF_dataSequence.length;
+                       grid.CF_deleteRows();
+                       csvparsed_len -= (prevC - grid.CF_dataSequence.length);
+                   }
+                 },
+                   { type: "separator" },
+                   {
+                       type: "button",
+                       id: "clear_filters",
+                       img: "Configero/clear.png",
+                       tooltip: 'Clear Filters',
+                       onClick: function(grid) {
+                           grid.CF_clearFilters();
+                       }
+                   },
+                   {
+                       type: "button",
+                       id: "export",
+                       img: "Configero/export.png",
+                       tooltip: 'Export',
+                       onClick: function(grid) {
+                           grid.CF_exportToCSV();
+                       }
+                   },
+                   { type: "separator" },
+                   {
+                       type: "button",
+                       id: "help",
+                       img: "Configero/help.png",
+                       tooltip: 'Help',
+                       onClick: function(grid) {
+                           window.open('http://www.configero.com/products/dataloader/help');
+                       }
+                   }
+                 ]
+             },
+             postInit: function(grid) {
+                loadImportRecs();
+
+				grid.CF_sendAllDataForSave = saveNullValues;                
+                grid.attachEvent('CF_onSaveComplete', function(success) {
+                    if (success) {
+                        // yay!
+                        //alert($('#operation_type_lbl').text().toUpperCase() + ' operation finished successfully!');
+                        parent.$.CF_cancelLookup(); 
+                        parent.document.location.href=CF_NAMESPACE_PREFIX + 'PowerLoaderFinal?finished=' + csvparsed_len + '&opt=' + escape(parent.getOperationType()) + '&ret=' + escape(parent.getInitUrl());
+                    } else {
+                        // start at the bottom and go up till we see our first error row (since it's sorted) - remove everything till that point
+                        // own own fast deleter - assumes no split, no tree, and unfiltered
+                        this.clearSelection();
+                        for (var i = 0; i < successRowsAfterSave.length; i++) {
+                        	delete this.rowsAr[successRowsAfterSave[i]];
+                       	}
+                       	for (var i = this.rowsBuffer.length - 1; i >= 0; i--) {
+                       		if (this.rowsBuffer[i] && !this.rowsAr[this.rowsBuffer[i].idd]) {
+                       			this.rowsBuffer.splice(i, 1);
+                       		}
+                       	}
+                       	this._reset_view();
+                       	// end fast deleter
+
+                        // do the rest just for the sake of doing things cleanly - the grid will not have these rows so it will be fast to go through this
+                        this.CF_startFastOperations();
+                        for (var i = 0; i < successRowsAfterSave.length; i++) {
+                            this.CF_deleteRowCommit(successRowsAfterSave[i]);
+                        }
+                        this.CF_stopFastOperations();
+                        this.CF_flushIdsToDel();
+                    }
+                });
+
+                // for now set them all to the same thing
+                grid.CF_saveRecsFunc = function(recsToSend, saveChangesHandler, extraParams) {
+                	var additionalParams = {assignmentRule: assignmentRule};
+                    {!$RemoteAction.PowerLoaderGrid.saveRecsWithExtras}(parent.getOperationType(), externalId, additionalParams, obj, fieldsLoaded[obj], relMap, recsToSend, saveChangesHandler, extraParams);
+                };
+             }
+          }
+       });
+     });
+}); 
+
+function loadImportRecs() {
+    pgrid.CF_resetGrid();
+
+    CF_beginProgress('Loading records');
+    {!$RemoteAction.PowerLoader_Funcs.getCSVContentMap}(attachId, function(result,event) {
+         if (event.status) {
+    		var encoding = result['encoding'];
+    		var csvparsed = result['content'];
+			if (encoding == 'base64') csvparsed = $.base64_decode(csvparsed);
+			csvparsed = $.CSVToArray(csvparsed);
+            pgrid.CF_dataSequence = [];
+            pgrid.CF_dataById = {};
+
+            // first row is header - skip it
+            if (csvparsed && csvparsed.length > 1) {
+                // create a mapping so we know the index of the mapped field in relation to the header row
+                var fieldToIndex = {};
+                for (var i = 0; i < headerFields.length; i++) {
+                    fieldToIndex[headerFields[i]] = i;
+                }
+
+				var cont = true;
+                for (var i = 1; i < csvparsed.length; i++) {
+                    // if row is entirely empty, skip it ... Excel puts blank rows at the end sometimes
+                    var isTotallyEmpty = true;
+                    for (var j = 0; j < csvparsed[i].length; j++) {
+                        if (csvparsed[i][j] != '') {
+                            isTotallyEmpty = false;
+                            break;
+                        }
+                    }
+                    if (isTotallyEmpty) continue;
+					csvparsed_len += 1;
+                    var aa = {};
+
+                    // not really relevant - just need something there
+                    for (var j = 0; j < match_arr.length; j++) {
+                        aa[match_arr[j]['obj']] = csvparsed[i].length >= fieldToIndex[match_arr[j]['csv']] ? csvparsed[i][fieldToIndex[match_arr[j]['csv']]] : '';
+                    }
+                    var idd = '' + -i;
+                    pgrid.CF_dataSequence.push(idd);
+                    pgrid.CF_dataById[idd] = aa;
+                }
+                if (cont) {
+                    // display the data
+                    $('#CF_progressCustomMessage').text('Preparing view');
+                    CF_doWhenIdle(function() {
+                        CF_beginProgress();
+                        pgrid.CF_displayData();
+                        CF_endProgress();
+                    });
+                }
+            }
+         } else {
+             alert(event.message);
+             parent.$.CF_cancelLookup();
+         }
+         CF_endProgress();
+    }, {escape: false});
+}
+</script>
+<div id="condition_div"><div class="condition"></div></div>
+<div id='layoutholder' rsub="0" bsub="0" style='position: relative; width: 800%; height: 70%;'></div>
+</apex:page>

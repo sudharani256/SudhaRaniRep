@@ -1,0 +1,59 @@
+<aura:component controller="docmCharts.DataListController" implements="flexipage:availableForAllPageTypes" access="global" >
+    <!-- Stylesheets References -->
+    <ltng:require styles="/resource/docmCharts__DocM_Bootstrap/css/aotp_bootstrap.css" afterScriptsLoaded="{!c.initScripts}"/>
+    <link rel="stylesheet" type="text/css" href="/resource/docmCharts__DocM_Kendo/styles/kendo.common.min.css" />
+    <link rel="stylesheet" type="text/css" href="/resource/docmCharts__DocM_Kendo/styles/kendo.rtl.min.css" />
+    <link rel="stylesheet" type="text/css" href="/resource/docmCharts__DocM_Kendo/styles/kendo.blueopal.min.css" />
+	
+    <!-- Events handled by Component -->
+	<aura:handler name="init" value="{!this}" action="{!c.init}" />
+    <aura:handler event="docmCharts:refreshComponentEvent" action="{!c.refreshUI}"/>
+    
+    <!-- Component Attributes -->
+    <!-- Data Source Type list values "APEX PROVIDER", "REST SERVICE", "CLIENT" -->
+    <aura:attribute name="dataSourceType" type="String" default="CLIENT" access="global" />
+
+    <!-- This attribute needs to be populated if APEX Provider is selected as the data source Type-->
+    <aura:attribute name="apexProviderClass" type="String" default="" access="global" />    
+
+    <!-- This attribute needs to be populated if REST Service is selected as the data source Type-->
+    <aura:attribute name="restEndPoint" type="String" default="" access="global" />    
+    <aura:attribute name="restEndPointMethod" type="String" default="POST" access="global" />    
+    <aura:attribute name="accessToken" type="String" default="" access="global" />    
+    
+    <!-- This attribute needs to be populated if Client is selected as the data source Type-->
+    <aura:attribute name="data" type="String" default="" access="global" />    
+
+    <!-- Attribute used to enable or disable the Component-->
+    <aura:attribute name="enabled" type="Boolean" default="true"  access="global" />    
+    <!-- Attribute used to control the look and feel for the Component -->
+    <aura:attribute name="theme" type="String" default="Classic"  access="global" />    
+
+    <!-- Attribute used to store the Unique Id for the Component. Set programatically in the Init event-->
+    <!-- There could be multiple instances of this Lightning Component in a Flexi Page. This docmId attribute
+		 ensures that elements of the component can be accessed uniquely. Had issues with using Global Id
+         because of the Special Characters and quite a few jQuery calls were failing. This attribute 
+		 value set in the Init event is set to the value of the Local Id attribute for the Component -->
+    <!-- Following attributes are System/internal attributes and are not configurable by Admins -->
+    <aura:attribute name="docmId" type="String"  />    
+	<aura:attribute name="wrapperDivElement" default="dWrapper" type="String" />    
+	<aura:attribute name="uiElement" default="dChart" type="String" />    
+	<aura:attribute name="messageDivElement" default="dMessage" type="String" />    
+    
+    <!-- Component Specific Attributes -->
+    <aura:attribute name="chartTitle" type="String" default="Title for Line Chart...."  access="global" />    
+    <aura:attribute name="xAxisLabels" type="String" default="[]"  access="global" />    
+    <aura:attribute name="backgroundImageUrl" type="String" default=""  access="global" />    
+    
+	<!-- Events raised by the Component -->
+    <!-- Component Event(s) -->
+    
+    <!-- Application Event(s) -->
+    
+    <!-- Component Markup -->
+    <div id="{!v.wrapperDivElement + v.docmId}" style="display:none">
+	    <div id="{!v.uiElement + v.docmId}"></div>
+    </div>
+	<div id="{!v.messageDivElement + v.docmId}">
+    </div>   
+</aura:component>

@@ -1,0 +1,8 @@
+<apex:page controller="SendMass_EventRegistered_Ppl_Extension1">
+<apex:pageblock >
+<apex:pageblockTable value="{!SelectedErs}" var="ser" >
+<apex:column value="{!ser.name}" />
+</apex:pageblockTable>
+</apex:pageblock>
+  
+</apex:page>

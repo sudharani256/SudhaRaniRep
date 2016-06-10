@@ -1,0 +1,23 @@
+<apex:page sidebar="false" Controller="buttondisable" showHeader="true" id="pg">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script> 
+    <script>
+        var $ = jQuery.noConflict();
+        function btnClick() {           
+            $('input[id*=confirmBtn]').attr('value','Saving...');
+            $('input[id*=confirmBtn]').attr('class', 'btnDisabled');
+            callShow();
+        }
+        
+        function btnComplete(){
+            $('input[id*=confirmBtn]').attr('value','Saved');
+            $('input[id*=confirmBtn]').attr('class', 'btn');
+            return true;
+        }
+    </script>
+    <apex:form id="frm">
+        <apex:actionFunction name="callShow" action="{!show}"/>        
+        <apex:outputText value="{!temp}"/>
+        <br/>
+        <apex:commandButton id="confirmBtn" value="Save" onclick="btnClick();" oncomplete="btnComplete();" reRender="frm"/>
+    </apex:form>
+</apex:page>

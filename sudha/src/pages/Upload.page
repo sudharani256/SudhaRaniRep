@@ -1,0 +1,26 @@
+<apex:page standardController="contact">
+<!--<apex:form >
+                <apex:image url="{!$Resource.Placeholder}"  width="150" height="150" />
+    <br/>
+   &nbsp;&nbsp;&nbsp;&nbsp; <a onclick="ChangeProfile_picture(); return false;" class="ShowHide_FilePath" title="Change Profile Picture" href="javascript: void(0);" style="margin-left:17px" >
+        Upload Picture
+    </a>
+   
+<script>
+    var w;
+    function ChangeProfile_picture()
+    {
+        var windowWidth = document.documentElement.clientWidth;
+        var windowHeight = document.documentElement.clientHeight;        
+        w = window.open('/apex/ImageCropper','ProfilePicture','channelmode=0,directories=0,fullscreen=0,height=190,width=453,left='+(windowWidth/2-453/2)+',top='+(windowHeight/2-190/2)+',location=0,menubar=0,resizable=0,scrollbars=0,status=0,titlebar=0,toolbar=0');  
+    }
+    
+    function updateURL(DocId)
+    {
+        var imgTag =  document.getElementById('imgval');
+        imgTag.src = "/servlet/servlet.FileDownload?file="+parentid ;
+        w.close();
+    }
+</script>
+</apex:form>-->
+</apex:page>

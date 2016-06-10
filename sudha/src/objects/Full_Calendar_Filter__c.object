@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionOverrides>
+        <actionName>Accept</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>CancelEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Clone</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Delete</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Edit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Follow</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>List</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>New</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>SaveEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Tab</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>View</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <compactLayoutAssignment>SYSTEM</compactLayoutAssignment>
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Simple rules for controlling the records that appear on a full calendar</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>false</enableHistory>
+    <enableReports>false</enableReports>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <fields>
+        <fullName>Active__c</fullName>
+        <defaultValue>true</defaultValue>
+        <description>Is this filter active?</description>
+        <externalId>false</externalId>
+        <inlineHelpText>Is this filter active?</inlineHelpText>
+        <label>Active</label>
+        <trackTrending>false</trackTrending>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
+        <fullName>Field_ID__c</fullName>
+        <description>The API name of the field on the source object this filter will evaluate</description>
+        <externalId>false</externalId>
+        <inlineHelpText>The API name of the field on the source object this filter will evaluate</inlineHelpText>
+        <label>Field ID</label>
+        <length>255</length>
+        <required>true</required>
+        <trackTrending>false</trackTrending>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Full_Calendar__c</fullName>
+        <description>What calendar is this filter related to?</description>
+        <externalId>false</externalId>
+        <inlineHelpText>What calendar is this filter related to?</inlineHelpText>
+        <label>Full Calendar</label>
+        <referenceTo>Full_Calendar__c</referenceTo>
+        <relationshipLabel>Full Calendar Filters</relationshipLabel>
+        <relationshipName>Full_Calendar_Filters</relationshipName>
+        <relationshipOrder>0</relationshipOrder>
+        <reparentableMasterDetail>false</reparentableMasterDetail>
+        <trackTrending>false</trackTrending>
+        <type>MasterDetail</type>
+        <writeRequiresMasterRead>false</writeRequiresMasterRead>
+    </fields>
+    <fields>
+        <fullName>Logical__c</fullName>
+        <description>What is the rule for this filter?</description>
+        <externalId>false</externalId>
+        <inlineHelpText>What is the rule for this filter?</inlineHelpText>
+        <label>Logical</label>
+        <picklist>
+            <picklistValues>
+                <fullName>Equal</fullName>
+                <default>true</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>Does not Equal</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>Greater Than</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>Less Than</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>Contains</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>Does not Contain</fullName>
+                <default>false</default>
+            </picklistValues>
+            <sorted>false</sorted>
+        </picklist>
+        <trackTrending>false</trackTrending>
+        <type>Picklist</type>
+    </fields>
+    <fields>
+        <fullName>Value__c</fullName>
+        <description>What is the value that this logical condition must evaluate on the field?</description>
+        <externalId>false</externalId>
+        <inlineHelpText>What is the value that this logical condition must evaluate on the field?</inlineHelpText>
+        <label>Value</label>
+        <length>255</length>
+        <required>true</required>
+        <trackTrending>false</trackTrending>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <label>Full Calendar Filter</label>
+    <nameField>
+        <displayFormat>FCF-{00000}</displayFormat>
+        <label>Full Calendar Filter Name</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <pluralLabel>Full Calendar Filters</pluralLabel>
+    <searchLayouts/>
+    <sharingModel>ControlledByParent</sharingModel>
+</CustomObject>

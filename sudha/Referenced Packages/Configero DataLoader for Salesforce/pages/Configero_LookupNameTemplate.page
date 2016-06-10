@@ -1,0 +1,222 @@
+<apex:page controller="PowerLoader.Configero_LookupNameTemplate" extensions="PowerLoader.Configero_Framework,PowerLoader.Configero_GridApp,PowerLoader.Configero_QueryPanelComponent" showHeader="false">
+<link rel="stylesheet" href="/sCSS/common.css" type="text/css" />
+
+<c:Configero_GridApp />
+
+ <script>
+ var obj = $.getUrlParam('obj');
+ var parobj = $.getUrlParam('parobj');
+ var parval = $.getUrlParam('parval');
+ var isMulti = $.getUrlParam('multi');
+
+ var selectFunc, nameField;
+ $(function() {
+	query_panel_submitHandler = function(params) {
+		submitForm();
+	}
+ 
+   __cf.initRootLayout('layoutholder', 
+       {
+         'tmpl' : '2E',
+         'cells': {
+             'a' : {
+                 'text': 'Criteria',
+                 'var': 'criteriaObj',
+                 'content': {
+                     type: 'html',
+                     html: 'criteria'
+                 },
+                 'height': 125,
+                 'toolbar': {
+                     items: [
+                     {
+			            type: "button",
+			            id: "filter_btn",
+			            img: "Configero/search.png",
+			            tooltip: 'Search',
+                        onClick: function(grid) {
+                             query_panel_submitHandler();
+                         }
+                     }]
+                 }
+             },
+             'b': {
+                 'text': 'Results',
+                 'var': 'gridObj'
+             }
+          }
+       }
+   );
+   criteriaObj.CF_hideLayoutCell();
+
+   parent.$('iframe').each(function(iel, el) {
+       if (el.contentWindow == window) {
+           selectFunc = el.selectFunc;
+           if (el.initFunc) {
+              el.initFunc($(document));
+           }
+       }
+   });
+
+   CF_gridGetObjectMeta(obj, function(result) {
+          allFields[obj] = result.fields;
+          allFieldsByAPIName[obj] = {};
+          fieldsLoaded[obj] = [];
+          for (var i = 0; i < allFields[obj].length; i++) {
+              allFields[obj][i].IsUpdateable = false;
+              allFields[obj][i].IsCreateable = false;
+              // since there may be multiple - if we already have "Name" there, keep it
+              if (allFields[obj][i].IsNameField && nameField != 'Name') {
+              	nameField = allFields[obj][i].Name;
+              }
+              allFieldsByAPIName[obj][allFields[obj][i].Name] = allFields[obj][i];
+          }
+          var allTemplates = result.templates;
+          var templateFields = false;
+          for (var i = 0; i < allTemplates.length; i++) {
+              if (allTemplates[i][CF_NAMESPACE_PREFIX + 'Default__c']) {
+                  if (!templateFields) templateFields = allTemplates[i][CF_NAMESPACE_PREFIX + 'BulkEditTemplateFields__r']['records'];
+                  else if (allTemplates[CF_NAMESPACE_PREFIX + 'Private__c']) templateFields = allTemplates[i][CF_NAMESPACE_PREFIX + 'BulkEditTemplateFields__r']['records'];
+              }
+          }
+          if (!templateFields) {
+              templateFields = buildDefaultTemplate({}, allFieldsByAPIName[obj]);
+          }
+
+          var fieldDef = templateFieldsToFieldDef(fieldsLoaded[obj], templateFields, allFieldsByAPIName[obj], obj);
+
+		  // make sure "namefield" is in the grid somwhere
+          var hasNameField = false;
+          for (var i = 0; i < fieldDef.length; i++) {
+          	if (fieldDef[i].field == nameField) {
+				hasNameField = true;
+                break;
+          	}
+          }
+	      if (!hasNameField) {
+	        fieldDef.push({'name':'Name','width':'0','type':'rotxt','hack_field':nameField,'value_func':function(rec){return rec[nameField]}});
+	      }
+
+          __cf._attachGrid(gridObj, {
+              'var': 'pgrid',
+              grid: {
+                  fields: fieldDef,
+                  allowFilter: true,
+                  allowMultiSelect: (isMulti ? true : false),
+                  enableGroups: false,
+                  postInit: function(grid) {
+                     grid.CF_searchGetIdsFunc = doRemoterSearchGetIds;
+                     grid.CF_searchLoadDataForIdsFunc = doRemoterGetDataForIds;
+
+                     grid.attachEvent('onRowDblClicked', function(rid, cid) {
+                         selectCurrentRecord(grid);
+                     });
+                     if (CF_QP_isValidPanel('query_panel')) {
+                     	criteriaObj.CF_showLayoutCell();
+                     	if ($.getUrlParam('autoload')) {
+                     		submitForm();
+                     	}
+                     } else {
+                     	submitForm();
+                     }
+                  },
+                   'toolbar': {
+                       items: [
+                       {
+                           type: "button",
+                           id: "select_record",
+                           img: "Configero/open.png",
+                           tooltip: 'Select Record',
+                           onClick: function(grid) {
+                               selectCurrentRecord(grid);
+                           }
+                       },
+                       {
+                           type: "button",
+                           id: "clear_selection",
+                           img: "Configero/clear.png",
+                           tooltip: 'Select None',
+                           onClick: function(grid) {
+                               selectNone();
+                           }
+                       }
+                       ]
+                   }
+              }
+          });
+    });
+ });
+
+function doRemoterSearchGetIds(loadPageSize, searchResultsHandler, extraParams) {
+	if (CF_QP_isValidPanel('query_panel')) {
+		if (!CF_QP_validateForm('query_panel')) {
+			CF_endProgress();
+			return false;
+		}
+		{!$RemoteAction.Configero_QueryPanelComponent.getIds}(obj, getFieldsToLoad(), query_panel_id, CF_QP_serialize('query_panel'), loadPageSize, searchResultsHandler, extraParams);
+	} else {
+		{!$RemoteAction.Configero_LookupNameTemplate.getIds}(obj, '', parobj, parval, searchResultsHandler, extraParams);
+	}
+}
+function doRemoterGetDataForIds(lastIdBatch, handleLoadResults, extraParams) {
+	{!$RemoteAction.Configero_Framework.getDataForIds}(obj, getFieldsToLoad(), lastIdBatch, handleLoadResults, extraParams);
+}
+function getFieldsToLoad() {
+    var flds = fieldsLoaded[obj];
+    for (var i = 0; i < flds.length; i++) {
+        if (flds[i] == nameField) return flds;
+    }
+    flds.push(nameField);
+    return flds;
+}
+function submitForm() {
+    pgrid.CF_resetGrid();
+    pgrid.CF_beginSearch();
+    return false;
+}
+
+function selectCurrentRecord(grid) {
+    var rid = grid.getSelectedId();
+    if (!rid) {
+        alert('Please select a record to continue.');
+        return;
+    }
+    var arr = rid.split(',');
+
+	var nmField = 0;
+   	for (var i = 0; i < grid.CF_fieldDef.length; i++) {
+        if (grid.CF_fieldDef[i]['field'] == nameField || grid.CF_fieldDef[i]['hack_field'] == nameField) {
+        	nmField = i;
+            break;
+        }
+    }
+
+    if (arr.length == 1) {
+	    selectFunc({id: rid, text: grid.cells(rid, nmField).getValue()});
+	} else {
+		var ret = [];
+		for (var i = 0; i < arr.length; i++) {
+			ret.push({id: arr[i], text: grid.cells(arr[i], nmField).getValue()});
+		}
+	    // return back to the parent
+	    selectFunc(ret);
+	}
+}
+function selectNone() {
+    selectFunc({id: '', text: ''});
+}
+ </script>
+
+<div id='layoutholder' rsub="0" bsub="0" style='position: relative; width: 100%; height: 100%;'></div>
+
+<!--  criteria form -->
+<div id="criteria_container" class="hidden">
+<div>
+<div id="criteria">
+<c:Configero_QueryPanel query_panel_object="{!objType}" query_panel_name="{!objType}_lookup" query_panel_uid="query_panel" />
+</div>
+</div>
+</div>
+<!--  end criteria form -->
+
+</apex:page>

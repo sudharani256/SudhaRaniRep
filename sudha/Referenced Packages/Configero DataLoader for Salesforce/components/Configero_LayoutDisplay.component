@@ -1,0 +1,18 @@
+<apex:component access="global" >
+<apex:attribute name="layoutDisplay" type="PowerLoader.Configero_LayoutDisplay" description="" access="global" />
+
+<apex:repeat value="{!layoutDisplay.layoutSections}" var="layoutSection">
+<apex:pageBlockSection collapsible="true" columns="{!layoutSection.numCols}" title="{!if(layoutSection.header == '', null, layoutSection.header)}">
+
+<apex:repeat value="{!layoutSection.rows}" var="row">
+<apex:repeat value="{!row.items}" var="item">
+<apex:inputField styleClass="{!item.fieldName}" rendered="{!!item.isEmptySpace && item.isEditable}" required="{!item.isRequired}" value="{!layoutDisplay.obj[item.fieldName]}" />
+<apex:outputField styleClass="{!item.fieldName}" rendered="{!!item.isEmptySpace && !item.isEditable}" value="{!layoutDisplay.obj[item.fieldName]}" />
+<apex:outputText value="" rendered="{!item.isEmptySpace}" />
+</apex:repeat>
+</apex:repeat>
+
+</apex:pageBlockSection>
+</apex:repeat>
+
+</apex:component>

@@ -1,0 +1,85 @@
+<apex:page controller="PowerLoader.Configero_DetailEditLaunch" showHeader="false" sidebar="false">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js" type="text/javascript"></script>
+<script src="{!URLFOR($Resource.domain_js)}"></script>
+<script>
+function getParent() {
+	if (parent && parent.$ && parent.$.getUrlParam) {
+		return parent;
+	} else {
+		return opener;
+	}
+}
+var obj = false;
+$(function() {
+	obj = document.getElementById('{!$component.detail_edit_form.detail_edit_block.detail_edit_section.record_type_fld}');
+	if (obj) {
+		obj = $(obj);
+		// exists
+		var opts = $('option', obj);
+		if (opts.length == 0) {
+			// has nothing...?
+			submitAndGo();
+		} else if (opts[0].value == '') {
+			// doesn't have anything - maybe just the master record type
+			submitAndGo();
+		} else if (opts.length == 1) {
+			// only has one - go with it
+			submitAndGo(opts[0].value);
+		} else {
+			$(document.getElementById('{!$component.detail_edit_form}')).show();
+
+			var rtypeDesc = {};
+			<apex:repeat value="{!descriptions}" var="idd">
+			rtypeDesc['{!JSENCODE(idd)}'.substring(0, 15)] = '{!JSENCODE(descriptions[idd])}';
+			</apex:repeat>
+			var tb = $('#recordTypeDescriptions tbody');
+			for (var i = 0; i < opts.length; i++) {
+				tb.append($('<tr />').append($('<td />').text($(opts[i]).text())).append($('<td />').text(rtypeDesc[opts[i].value.substring(0, 15)])));
+			}
+		}
+	}
+});
+function submitAndGo(val) {
+	var gc = getParent().$.getUrlParam('cont', window.location.search);
+	if (gc == null) gc = getParent().CF_NAMESPACE_PREFIX + 'Configero_DetailEdit';
+    var loc = window.location.search;
+	if (val != undefined && val != '') {
+		loc += '&RecordTypeId=' + val;
+	}
+	document.location.href = gc + loc;
+}
+</script>
+
+<apex:form style="display: none" id="detail_edit_form">
+
+<apex:pageBlock id="detail_edit_block" title="Select Record Type" rendered="{!!skipSelection}">
+<apex:pageBlockButtons location="bottom">
+	<input type="button" class="btn" value="Continue" onclick="submitAndGo($(obj).val()); return false;" />
+</apex:pageBlockButtons>
+<apex:pageBlockSection id="detail_edit_section" collapsible="false">
+	<apex:inputField id="record_type_fld" value="{!obj['RecordTypeId']}" />
+</apex:pageBlockSection>
+</apex:pageBlock>
+
+<apex:outputPanel rendered="{!!skipSelection}">
+<table class="list" id="recordTypeDescriptions">
+<tbody>
+	<tr class="headerRow">
+		<th scope="col">Record Type Name</th>
+		<th scope="col">Description</th>
+	</tr>
+</tbody>
+</table>
+</apex:outputPanel>
+
+<apex:outputPanel rendered="{!skipSelection}">
+<script>
+$(function() {
+	submitAndGo();
+});
+</script>
+</apex:outputPanel>
+
+</apex:form>
+
+</apex:page>

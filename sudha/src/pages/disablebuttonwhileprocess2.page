@@ -1,0 +1,19 @@
+<apex:page standardController="Account">
+ 
+  <apex:form >
+      <apex:pageblock title="Account">
+       <apex:actionStatus id="mySaveStatus1">
+         <apex:facet name="stop">
+             <apex:commandButton value="Save Mappings" action="{!save}" rerender="dummy" status="mySaveStatus1"/>
+         </apex:facet>
+         <apex:facet name="start">
+             <apex:outputPanel >
+                   <apex:image value="/img/loading32.gif" style="height: 15px;"/>
+                   <apex:commandButton value="Processing..." status="mySaveStatus1" disabled="true"/>
+               </apex:outputPanel>
+           </apex:facet>
+        </apex:actionStatus>
+      </apex:pageblock>
+  </apex:form>
+ 
+</apex:page>

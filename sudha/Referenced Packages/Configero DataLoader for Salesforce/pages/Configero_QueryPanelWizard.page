@@ -1,0 +1,436 @@
+<apex:page standardController="PowerLoader__Query_Panel__c" extensions="PowerLoader.Configero_QueryPanelWizard" recordSetVar="qps">
+<c:Configero_Framework />
+<style>
+.btn { width: 150px; margin-top: 2px !important; margin-bottom: 2px !important; }
+#sel_lbl_for { font-weight: bold; }
+</style>
+
+<script>
+var cachedFields = {};
+var drillDownFields = {};
+var selectedObj = false;
+function navUpTo(ind) {
+	var tdd = $('#rel_td');
+	var sels = $('select', tdd);
+
+	var p = sels[ind];
+	p.value = '';
+	$(p).trigger('change');
+}
+function resetRelObjFields() {
+	$('#sel_field_list').empty();
+	$('#rel_td').empty().text('N/A');
+	$('#sel_lbl_for').text('N/A');
+}
+function updateObjectSel(obj) {
+	var val = obj.value;
+	selectedObj = val;
+	$('#rel_obj').empty();
+	$('#added_fields_list').empty();
+	updateQueryPanelName();
+
+	resetRelObjFields();
+
+	if (val != '') {
+		loadFieldsFor(val);
+	}
+}
+function getRootObject() {
+	return $('#object_sel1').val();
+}
+function updateRelObjSel(obj) {
+	var val = obj.value;
+	resetRelObjFields();
+	if (val == '') {
+		// load the main object
+		loadFieldsFor(getRootObject());
+	} else {
+		loadFieldsFor($('#rel_obj option:selected').attr('obj'));
+	}
+}
+function loadFieldsFor(obj) {
+	if (cachedFields[obj]) {
+		handleDrillDownObj(drillDownFields[obj]);
+		handleLoadedFields(cachedFields[obj]);
+	} else {
+		CF_beginProgress('Loading Metadata');
+		// fetch from cache
+		{!$RemoteAction.Configero_QueryPanelWizard.getFieldsForObject}(obj, function(result, event) {
+			CF_endProgress();
+			if (event.status == true) {
+				var drill = result.pop().drilldown;
+				eval('drill = ' + drill);
+
+				drillDownFields[obj] = drill;
+				cachedFields[obj] = result;
+				handleDrillDownObj(drillDownFields[obj]);
+				handleLoadedFields(cachedFields[obj]);
+			} else {
+				alert(event.message);
+			}
+		}, {escape: false});
+	}
+}
+function handleDrillDownObj(lst) {
+	// if rel_obj is empty, continue...otherwise keep going
+	var ro = $('#rel_obj');
+	if (ro.has('option').length > 0) return;
+
+	// first put in the current object itself
+	ro.append($('<option value="" />').text($('#object_sel1 option:selected').attr('display_label') + ' (Primary Object)').attr('display_label', $('#object_sel1 option:selected').attr('display_label') + ' (Primary Object)'));
+	for (var i = 0; i < lst.length; i++) {
+		var sa = $('<optgroup />').attr('label', lst[i].name);
+		ro.append(sa);
+		for (var j = 0; j < lst[i].relationships.length; j++) {
+			sa.append($('<option />').text(lst[i].relationships[j].relationshipName + ' (' + lst[i].relationships[j].fieldAPIName + ')').val(lst[i].relationships[j].childSObjectAPIName + '.' + lst[i].relationships[j].fieldAPIName).attr('fld', lst[i].relationships[j].fieldAPIName).attr('obj', lst[i].relationships[j].childSObjectAPIName).attr('display_label', lst[i].name + ' :: ' + lst[i].relationships[j].relationshipName + ' (' + lst[i].relationships[j].fieldAPIName + ')'));
+		}
+	}
+	
+}
+function handleLoadedFields(obj) {
+	var ss = $('#sel_field_list');
+	var tdd = $('#rel_td');
+	var sels = $('select', tdd);
+
+	var sfe = $('#sel_lbl_for');
+	sfe.empty();
+	var lbls = [$('#rel_obj option:selected').attr('display_label')];
+	for (var i = 0; i < sels.length; i++) {
+		if (sels[i].value == '') break;
+		lbls.push($('option:selected', $(sels[i])).text());
+	}
+	for (var i = 0; i < lbls.length; i++) {
+		if (i > 0) {
+			sfe.append(' > ');
+		}
+		if (i == lbls.length - 1) {
+			sfe.append(lbls[i]);
+		} else {
+			sfe.append($('<a onclick="navUpTo(' + i + ')" href="javascript:void(0)" />').text(lbls[i]));
+		}
+	}
+
+	var rels = [];
+	ss.empty();
+	for (var i = 0; i < obj.length; i++) {
+		var lbl = obj[i].label;
+		var relTo = '';
+		if (obj[i].relApi) {
+			// points to another object
+			rels.push(obj[i]);
+			relTo = obj[i].relApi;
+			if (lbl.endsWith(' ID')) {
+				lbl = lbl.substring(0, lbl.length - 3);
+			}
+		}
+
+		ss.append($('<option />').text(lbl).val(obj[i].api).attr('displayType', obj[i].displayType).attr('relTo', relTo));
+	}
+
+	if (rels.length > 0) {
+		// has relationship fields - add them to the last select if it's value is blank...otherwise create a new one at the end
+		// if we're already at 5 sels, do nothing since we can't drill down any more
+		var upd_sel = false;
+		if (sels.length == 0) {
+			upd_sel = $('<select id="object_sel' + (sels.length + 1) + '" onchange="updateRelSel(this)" />');
+			tdd.empty().append(upd_sel);
+		} else {
+			upd_sel = $(sels[sels.length - 1]);
+			if (upd_sel.val() == '') {
+				// this is the one we want to update
+			} else {
+				// create one
+				if (sels.length == 5) {
+					// already at max - don't do anything else
+					upd_sel = false;
+				} else {
+					upd_sel = $('<select id="object_sel' + (sels.length + 1) + '" onchange="updateRelSel(this)" />');
+					tdd.append(upd_sel);
+				}
+			}
+		}
+		if (upd_sel) {
+			upd_sel.empty().append($('<option value="" />'));
+			for (var i = 0; i < rels.length; i++) {
+				var lbl = rels[i].label;
+				if (lbl.endsWith(' ID')) {
+					lbl = lbl.substring(0, lbl.length - 3);
+				}
+				var fld = rels[i].api;
+				if (fld.endsWith('Id')) {
+					fld = fld.substring(0, fld.length - 2);
+				}
+				upd_sel.append($('<option />').val(rels[i].relApi).attr('fldApi', fld).text(lbl));
+			}
+		}
+	}
+}
+function updateRelSel(obj) {
+	obj = $(obj);
+
+	// remove everything after this
+	obj.nextAll().remove();
+
+	// if the value is blank, submit the one before this (or the primary object if it exists)
+	// if the value is not blank, submit the current value
+	var val = obj.val();
+	if (val == '') {
+		obj = obj.prev();
+		if (obj.length == 0) {
+			loadFieldsFor(getRootObject());
+		} else {
+			loadFieldsFor(obj.val());
+		}
+	} else {
+		loadFieldsFor(val);
+	}
+}
+function updateLookup() {
+	updateQueryPanelName();
+}
+function updateQueryPanelName() {
+	var val = $('#object_sel1').val();
+	
+	var is_lookup = val != '' && $('#lookup_query_panel').is(':checked');
+	$('#query_panel_name').val(val + (is_lookup ? '_lookup' : ''));
+}
+function addSelected() {
+	var fieldSels = $('#sel_field_list option:selected');
+	if (fieldSels.length == 0) return;
+
+	// go through the list and add the ones that aren't already in the list
+	var lblPrefix = '';
+	var fldPrefix = '';
+	var sels = $('select', $('#rel_td'));
+
+	var lastObj = selectedObj;
+	var baseObj = '';
+	var baseFld = '';
+
+	var rs = $('option:selected', $('#rel_obj'));
+	if (rs.val() != '') {
+		var fobj = rs.attr('obj');
+		if (fobj.endsWith('__c')) fobj = fobj.substring(0, fobj.length - 1) + 'r';
+
+		var ffld = rs.attr('fld');
+		if (ffld.endsWith('__c')) ffld = ffld.substring(0, ffld.length - 1) + 'r';
+
+		fldPrefix += fobj + '___' + ffld + '.'; // use 3 _ to differentiate it
+
+		lblPrefix += rs.attr('display_label') + ' > ';
+		lastObj = rs.attr('obj');
+
+		baseObj = lastObj;
+		baseFld = rs.attr('fld');
+	}
+
+	for (var i = 0; i < sels.length; i++) {
+		if (sels[i].value == '') break;
+		var xa = $('option:selected', $(sels[i]));
+		var ffld = xa.attr('fldApi');
+		if (ffld.endsWith('__c')) ffld = ffld.substring(0, ffld.length - 1) + 'r';
+		fldPrefix += ffld + '.';
+		lblPrefix += xa.text() + ' > ';
+		lastObj = xa.val();
+	}
+
+	var aa = $('#added_fields_list');
+	var alreadyAdded = {};
+	var aao = aa.get(0);
+	for (var i = 0; i < aao.options.length; i++) {
+		alreadyAdded[aao.options[i].value] = 1;
+	}
+	for (var i = 0; i < fieldSels.length; i++) {
+		fieldSels[i] = $(fieldSels[i]);
+		if (alreadyAdded[fldPrefix + fieldSels[i].val()]) continue;
+		var txtPrefix = lblPrefix + fieldSels[i].text();
+		var opt = $('<option />').val(fldPrefix + fieldSels[i].val()).attr('txtPrefix', txtPrefix).text(txtPrefix + ' (' + fieldSels[i].text() + ')').attr('displayType', fieldSels[i].attr('displayType')).attr('displayText', fieldSels[i].text()).attr('fldApi', fieldSels[i].val()).attr('objApi', lastObj).attr('relTo', fieldSels[i].attr('relTo'));
+		opt.attr('baseObj', baseObj);
+		opt.attr('baseFld', baseFld);
+		aa.append(opt);
+	}
+}
+function validateNumPerRow() {
+	var x = $('#num_per_row');
+	var v = parseInt(x.val(), 10);
+	if (isNaN(v)) v = 0;
+	if (v <= 0) v = 4;
+	x.val(v);
+}
+function addedSelRemove() {
+	$('#added_fields_list option:selected').remove();
+}
+function addedSelMoveToTop() {
+	var x = $('#added_fields_list');
+	var xa = $('option:selected', x);
+	xa.remove();
+	for (var i = xa.length - 1; i >= 0; i--) {
+		x.prepend(xa[i]);
+	}
+}
+function editSelDisplayText() {
+	var x = $('#added_fields_list');
+	var selectedOption = $($('option:selected', x).get(0));
+	if (selectedOption.length == 0) return;
+	lbl = prompt('Edit label', selectedOption.attr('displayText'));
+	if (lbl == null || lbl == '') return;
+	selectedOption.attr('displayText', lbl).text(selectedOption.attr('txtPrefix') + ' (' + lbl + ')');
+}
+function addedSelMoveUp() {
+	var x = $('#added_fields_list');
+	var selectedOptions = $('option:selected', x);
+	var prev = $(selectedOptions).first().prev();
+	$(selectedOptions).insertBefore(prev);
+}
+function addedSelMoveDown() {
+	var x = $('#added_fields_list');
+	var selectedOptions = $('option:selected', x);
+	var next = $(selectedOptions).last().next();
+	$(selectedOptions).insertAfter(next);
+}
+function addedSelMoveToBottom() {
+	var x = $('#added_fields_list');
+	var xa = $('option:selected', x);
+	xa.remove();
+	for (var i = 0; i < xa.length; i++) {
+		x.append(xa[i]);
+	}
+}
+function saveQP() {
+	var x = $('#added_fields_list option');
+	if (x.length == 0 && !$('#ownership_checkboxes').is(':checked')) {
+		alert('Please select at least one field continue.');
+		return;
+	}
+
+	// prepare the package we'll use to save
+	var sr = [{ownership_checks: $('#ownership_checkboxes').is(':checked')}];
+	for (var i = 0; i < x.length; i++) {
+		x[i] = $(x[i]);
+		sr.push({
+			obj: x[i].attr('objApi'),
+			fld: x[i].attr('fldApi'),
+			path: x[i].val(),
+			text: x[i].attr('displayText'),
+			type: x[i].attr('displayType'),
+			relTo: x[i].attr('relTo'),
+			baseObj: x[i].attr('baseObj'),
+			baseFld: x[i].attr('baseFld')
+		});
+	}
+
+	// make sure the name is not in use already - if so, ask to overwrite
+	CF_beginProgress('Creating Query Panel');
+	var nm = $('#query_panel_name').val();
+	// fetch from cache
+	{!$RemoteAction.Configero_QueryPanelWizard.checkQueryPanelExists}(nm, function(result, event) {
+		CF_endProgress();
+		if (event.status == true) {
+			if (result) {
+				if (!confirm('Query panel for this object already exists.  Click OK to continue and overwrite the existing Query Panel.')) return;
+			}
+			CF_beginProgress('Creating Query Panel');
+			{!$RemoteAction.Configero_QueryPanelWizard.createQueryPanel}(nm, parseInt($('#num_per_row').val()), sr, function(result, event) {
+				CF_endProgress();
+				if (event.status == true) {
+					document.location.href = '/' + result;
+				} else {
+					alert(event.message);
+				}
+			}, {escape: false});
+		} else {
+			alert(event.message);
+		}
+	}, {escape: false});
+
+	// go ahead and update
+}
+</script>
+
+<apex:pageBlock title="Query Panel Wizard">
+	<apex:pageBlockButtons location="bottom">
+		<input type="button" onclick="saveQP(); return false;" value="Save" class="btn" />
+	</apex:pageBlockButtons>
+
+<apex:pageBlockSection collapsible="false" title="Fields to Add" />
+
+<table border="0" cellspacing="2" cellpadding="2">
+	<tr>
+		<td><label class="labelCol">Primary Object: <img alt="Help" class="helpIcon" src="/s.gif" title="Object for which this Query Panel will be created." /></label></td>
+		<td>
+			<select id="object_sel1" onchange="updateObjectSel(this)">
+			   <option value=""></option>
+			   <apex:repeat var="objW" value="{!objectListMulti}">
+			   <apex:repeat var="obj" value="{!objW}">
+			   <option display_label="{!HTMLENCODE(obj.label)}" value="{!HTMLENCODE(obj.value)}">{!HTMLENCODE(obj.label)} ({!HTMLENCODE(obj.Value)})</option>
+			   </apex:repeat>
+			   </apex:repeat>
+			</select>
+		</td>
+	</tr>
+	<tr>
+		<td><label class="labelCol">Drill Down: <img alt="Help" class="helpIcon" src="/s.gif" title="Optional - Drill down into another relationship." /></label></td>
+		<td>
+			<select id="rel_obj" onchange="updateRelObjSel(this)"></select>
+		</td>
+	</tr>
+	<tr>
+		<td><label class="labelCol">Drill Up: <img alt="Help" class="helpIcon" src="/s.gif" title="Optional - Drill up into a relationship." /></label></td>
+		<td id="rel_td">N/A</td>
+	</tr>
+	<tr>
+		<td><label class="labelCol">Select Field(s):</label></td>
+		<td>
+			<table border="0" cellspacing="2" cellpadding="2">
+				<tr><td colspan="2">For: <span id="sel_lbl_for">N/A</span></td></tr>
+				<tr>
+					<td><select id="sel_field_list" multiple="multiple" style="min-width: 300px" size="10"></select></td>
+					<td style="vertical-align: middle"><input type="button" class="btn" value="Add Selected" onclick="addSelected()" /></td>
+				</tr>
+			</table>
+		</td>
+	</tr>
+</table>
+
+<apex:pageBlockSection collapsible="false" title="Added Fields" />
+
+<table border="0" cellspacing="2" cellpadding="2">
+	<tr>
+		<td nowrap="nowrap"><label class="labelCol">Added Field(s):</label></td>
+		<td>
+			<select id="added_fields_list" multiple="multiple" style="min-width: 300px" size="10"></select>
+		</td>
+		<td style="vertical-align: middle">
+			<input type="button" class="btn" onclick="editSelDisplayText()" value="Edit Display Label" /><br />
+			<input type="button" class="btn" onclick="addedSelRemove()" value="Remove Selected" /><br />
+			<input type="button" class="btn" onclick="addedSelMoveToTop()" value="Move To Top" /><br />
+			<input type="button" class="btn" onclick="addedSelMoveUp()" value="Move Up" /><br />
+			<input type="button" class="btn" onclick="addedSelMoveDown()" value="Move Down" /><br />
+			<input type="button" class="btn" onclick="addedSelMoveToBottom()" value="Move To Bottom" /><br />
+		</td>
+	</tr>
+</table>
+
+<apex:pageBlockSection collapsible="false" title="Properties" columns="1" />
+<table border="0" cellspacing="2" cellpadding="2">
+	<tr>
+		<td align="right"><label class="labelCol" for="lookup_query_panel">Is Lookup Query Panel: <img alt="Help" class="helpIcon" src="/s.gif" title="Check this box to indicate that the query panel will be displayed on the lookup window for the selected Primary Object." /></label></td>
+		<td><input type="checkbox" onclick="updateLookup()" id="lookup_query_panel" /></td>
+	</tr>
+	<tr>
+		<td align="right"><label class="labelCol" for="ownership_checkboxes">Include Ownership Checkboxes: <img alt="Help" class="helpIcon" src="/s.gif" title="Includes the Ownership Checkboxes for filtering" /></label></td>
+		<td><input type="checkbox" id="ownership_checkboxes" /></td>
+	</tr>
+	<tr>
+		<td align="right"><label class="labelCol">Fields per row: <img alt="Help" class="helpIcon" src="/s.gif" title="The number of fields to display per row on the Query Panel.  For example, if 6 fields are selected and the value specified here is 3, then a 2 row Query Panel grid will be displayed containing 3 fields on each row." /></label></td>
+		<td><input onblur="validateNumPerRow()" type="text" size="5" value="4" id="num_per_row" /></td>
+	</tr>
+	<tr>
+		<td align="right"><label class="labelCol">Name: <img alt="Help" class="helpIcon" src="/s.gif" title="The name is based on the Primary Object's API name and the lookup query panel indicator." /></label></td>
+		<td><input type="text" style="width: 350px" id="query_panel_name" /></td>
+	</tr>
+</table>
+
+</apex:pageBlock>
+
+</apex:page>

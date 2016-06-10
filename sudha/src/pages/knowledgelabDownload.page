@@ -1,0 +1,6 @@
+<apex:page controller="knowledgelabDownload" sidebar="false" action="{!fetch}" contentType="text/plain/#emp.txt" cache="false">
+Employee Number : {!emp.Name}<br/>
+Employee Name : {!emp.accountnumber}<br/>
+City : {!emp.phone}
+ 
+</apex:page>

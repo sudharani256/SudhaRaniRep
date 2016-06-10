@@ -1,0 +1,369 @@
+<apex:page standardController="contact" extensions="cls_ImageCropper1" id="pg" showHeader="true" >
+   <head>
+      <meta http-equiv='cache-control' content='no-cache'/>
+      <meta http-equiv='expires' content='0'/>
+      <meta http-equiv='pragma' content='no-cache'/>      
+   </head>
+    
+  <body>
+      <style>
+           .btn_active{
+                height: 25px;
+                padding: 0px 15px !important;
+                border: 1px solid #CCC !important;
+                color: #015BA7;
+                font-weight: bold !important;
+                font-family: arial !important;
+                font-size: 12px;
+                position: relative !important;
+                left: 0px !important;
+                cursor: pointer !important;
+                border-radius: 2px !important;
+                line-height: 26px !important;
+                text-decoration: none !important;
+                display: inline-block;
+            }
+      </style>
+      <!--<apex:inputHidden id="DocId" value="{!DocID}"/>-->
+      <apex:outputPanel rendered="{!NOT(doneuploading)}">
+         <apex:form id="frm1">
+            <apex:actionFunction name="EditProfilePicture" id="editpic" action="{!uploadPicture}">
+               <apex:param value="false" name="uploadDoc" assignTo="{!uploadCroping}"/>
+            </apex:actionFunction>
+            <!--Start ChangeProfile_picture-->
+            <div class="ChangeProfile_picture"  style="display: block; margin: 0 auto;width: 250px;">
+               <center>
+                  <div style="font-size: x-large;">Upload Picture </div>
+                  <br/>
+                  <div id="ErrorDiv"> </div>
+               </center>
+               <!--Start formbox-->
+               <div class="formbox" style="width:100% !important; margin-left:40%important">
+                  <form>
+                     <table class="table" border="0" cellpadding="5" cellspacing="0">
+                        <tr>
+                        <tr>
+                           <td>
+                              <center>
+                              <label>
+                                 <apex:inputFile style="padding: 4.5px 10px;width: 95.5%;" id="fileid" fileSize="{!fsize}" accept="image/*" size="40" title="Browse"  value="{!propFileBody}" fileName="{!propFileName}"  contentType="{!propContentType}" ></apex:inputFile>
+                              </label>                              
+                              <div class="paginationstyle" style="display:inline"><a href="javascript: void(0);" class="btn_active" onclick="validateProfilePicture(); return false;" title="Submit">Submit</a>
+                              </div>  
+                              </center>                            
+                           </td>
+                        </tr>
+                        </tr>
+                     </table>
+                  </form>
+               </div>
+               <!--End formbox-->    
+            </div>
+         </apex:form>
+      </apex:outputPanel>
+      <apex:outputPanel rendered="{!doneuploading}">
+         <style>
+            .imageBox
+            {
+            position: relative;
+            height: 400px;
+            width: 400px;
+            border:1px solid #aaa;
+            background: #fff;
+            overflow: hidden;
+            background-repeat: no-repeat;
+            cursor:move;
+            }
+            .imageBox .thumbBox
+            {
+            position: absolute;
+            top: 40%;
+            left: 60%;
+            width: 160px;
+            height: 175px;
+            margin-top: -50px;
+            margin-left: -125px;
+            box-sizing: border-box;
+            border: 1px solid rgb(102, 102, 102);
+            box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5);
+            background: none repeat scroll 0% 0% transparent;
+            }
+            .imageBox .spinner
+            {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            text-align: center;
+            line-height: 400px;
+            background: rgba(0,0,0,0.7);
+            }
+            .container
+            {
+            position: relative;
+            top: 10%;
+            margin: 0 auto;
+            width: 400px;
+            }
+            .action
+            {
+            width: 400px;
+            height: 30px;
+            margin: 10px 0;
+            }
+            .cropped>img
+            {
+            margin-right: 10px;
+            }           
+         </style>
+         <apex:form id="frm2">
+            <apex:actionFunction name="UploadCropPicture" id="croppic" action="{!uploadPicture}" reRender="outputcrop" oncomplete="oncompCropping();">
+               <apex:param value="" name="dataurl" assignTo="{!inputdataUrl}"/>
+               <apex:param value="true" name="uploadcroping" assignTo="{!uploadCroping}"/>
+            </apex:actionFunction>
+            <!---------------------------->
+            <div class="container">
+               <div class="imageBox">
+                  <div class="thumbBox"></div>
+                  <div class="spinner" style="display: none">Loading...</div>
+               </div>
+               <div class="action">
+                  <a href="javascript:void(0);" id="btnCrop" class="btn_active" style="float: right;">Crop</a>
+                  <a href="javascript:void(0);" id="btnZoomIn" class="btn_active" style="float: right;">Zoom IN</a>
+                  <a href="javascript:void(0);" id="btnZoomOut" class="btn_active" style="float: right;">Zoom Out</a>
+               </div>
+               <div class="cropped">
+               </div>
+            </div>
+         </apex:form>
+      </apex:outputPanel>
+   </body>
+   <apex:outputPanel id="outputcrop">
+      <script type="text/javascript">
+         'use strict';
+         var cropbox = function(options){
+             var el = document.querySelector(options.imageBox),
+             obj =
+             {
+                 state : {},
+                 ratio : 1,
+                 options : options,
+                 imageBox : el,
+                 thumbBox : el.querySelector(options.thumbBox),
+                 spinner : el.querySelector(options.spinner),
+                 image : new Image(),
+                 getDataURL: function ()
+                 {
+                     var width = this.thumbBox.clientWidth,
+                         height = this.thumbBox.clientHeight,
+                         canvas = document.createElement("canvas"),
+                         dim = el.style.backgroundPosition.split(' '),
+                         size = el.style.backgroundSize.split(' '),
+                         dx = parseInt(dim[0]) - el.clientWidth/2 + width/2,
+                         dy = parseInt(dim[1]) - el.clientHeight/2 + height/2,
+                         dw = parseInt(size[0]),
+                         dh = parseInt(size[1]),
+                         sh = parseInt(this.image.height),
+                         sw = parseInt(this.image.width);
+         
+                     canvas.width = width;
+                     canvas.height = height;
+                     var context = canvas.getContext("2d");
+                     context.drawImage(this.image, 0, 0, sw, sh, dx, dy, dw, dh);
+                     var imageData = canvas.toDataURL('image/png');
+                     return imageData;
+                 },
+                 getBlob: function()
+                 {
+                     var imageData = this.getDataURL();
+                     var b64 = imageData.replace('data:image/png;base64,','');
+                     var binary = atob(b64);
+                     var array = [];
+                     for (var i = 0; i < binary.length; i++) {
+                         array.push(binary.charCodeAt(i));
+                     }
+                     return  new Blob([new Uint8Array(array)], {type: 'image/png'});
+                 },
+                 zoomIn: function ()
+                 {
+                     this.ratio*=1.1;
+                     setBackground();
+                 },
+                 zoomOut: function ()
+                 {
+                     this.ratio*=0.9;
+                     setBackground();
+                 }
+             },
+             attachEvent = function(node, event, cb)
+             {
+                 if (node.attachEvent)
+                     node.attachEvent('on'+event, cb);
+                 else if (node.addEventListener)
+                     node.addEventListener(event, cb);
+             },
+             detachEvent = function(node, event, cb)
+             {
+                 if(node.detachEvent) {
+                     node.detachEvent('on'+event, cb);
+                 }
+                 else if(node.removeEventListener) {
+                     node.removeEventListener(event, render);
+                 }
+             },
+             stopEvent = function (e) {
+                 if(window.event) e.cancelBubble = true;
+                 else e.stopImmediatePropagation();
+             },
+             setBackground = function()
+             {
+                var elemArray = document.getElementsByClassName("imageBox")[0].style.backgroundPosition;
+                if(elemArray.length == 0)
+                {
+                 var w =  parseInt(obj.image.width)*obj.ratio;
+                 var h =  parseInt(obj.image.height)*obj.ratio;
+                 var pw = (el.clientWidth - w) / 2;
+                 var ph = (el.clientHeight - h) / 2;
+                 el.setAttribute('style',
+                         'background-image: url(' + obj.image.src + '); ' +
+                         'background-size: ' + w +'px ' + h + 'px; ' +
+                         'background-position: ' + pw + 'px ' + ph + 'px; ' +
+                         'background-repeat: no-repeat');
+                }
+                if(elemArray.length>0)
+                {
+                 var w =  parseInt(obj.image.width)*obj.ratio;
+                 var h =  parseInt(obj.image.height)*obj.ratio;
+                 var pw = (el.clientWidth - w) / 2;
+                 var ph = (el.clientHeight - h) / 2;
+                
+                 el.setAttribute('style',
+                         'background-image: url(' + obj.image.src + '); ' +
+                         'background-size: ' + w +'px ' + h + 'px; ' +
+                         'background-position: '+elemArray+'; ' +
+                         'background-repeat: no-repeat');
+                }
+             },
+             imgMouseDown = function(e)
+             {
+                 stopEvent(e);
+                 obj.state.dragable = true;
+                 obj.state.mouseX = e.clientX;
+                 obj.state.mouseY = e.clientY;
+             },
+             imgMouseMove = function(e)
+             {
+                 stopEvent(e);
+                 if (obj.state.dragable)
+                 {
+                     var x = e.clientX - obj.state.mouseX;
+                     var y = e.clientY - obj.state.mouseY;
+         
+                     var bg = el.style.backgroundPosition.split(' ');
+         
+                     var bgX = x + parseInt(bg[0]);
+                     var bgY = y + parseInt(bg[1]);
+         
+                     el.style.backgroundPosition = bgX +'px ' + bgY + 'px';
+         
+                     obj.state.mouseX = e.clientX;
+                     obj.state.mouseY = e.clientY;
+                 }
+             },
+             imgMouseUp = function(e)
+             {
+                 stopEvent(e);
+                 obj.state.dragable = false;
+             },
+             zoomImage = function(e)
+             {
+                 var evt=window.event || e;
+                 var delta=evt.detail? evt.detail*(-120) : evt.wheelDelta;
+                 delta > -120 ? obj.ratio*=1.1 : obj.ratio*=0.9;
+                 setBackground();
+             }
+         
+             obj.spinner.style.display = 'block';
+             obj.image.onload = function() {
+                 obj.spinner.style.display = 'none';
+                 setBackground();
+         
+                 attachEvent(el, 'mousedown', imgMouseDown);
+                 attachEvent(el, 'mousemove', imgMouseMove);
+                 attachEvent(document.body, 'mouseup', imgMouseUp);
+                 var mousewheel = (/Firefox/i.test(navigator.userAgent))? 'DOMMouseScroll' : 'mousewheel';
+                 attachEvent(el, mousewheel, zoomImage);
+             };
+             obj.image.src = options.imgSrc;
+             attachEvent(el, 'DOMNodeRemoved', function(){detachEvent(document.body, 'DOMNodeRemoved', imgMouseUp)});
+         
+             return obj;
+         };
+      </script>
+      <script type="text/javascript">
+         var imageData;
+         
+         function validateProfilePicture(){
+             var inpt_file = document.getElementById('pg:frm1:fileid');
+             if(inpt_file.value == '' || inpt_file.fileName == '' || inpt_file.contentType == ''){             
+                 document.getElementById('ErrorDiv').innerHTML = '<b>Error:</b> Please specify a file to upload, or use the "Browse" button to locate it in your local file system.';
+             }
+             else{
+             document.getElementById('ErrorDiv').innerHTML = '';
+             window.resizeTo(550, 550);
+             EditProfilePicture(false);
+             }
+         }
+         
+         function loadcropper() {
+             var options =
+             {
+                 imageBox: '.imageBox',
+                 thumbBox: '.thumbBox',
+                 spinner: '.spinner',
+                 imgSrc: '{!upldocUrl}'
+             }
+             var cropper = new cropbox(options);
+             document.querySelector('#btnCrop').addEventListener('click', function(){
+                 imageData = cropper.getDataURL();
+ 
+                 var r = window.confirm("Are you sure you want to change the profile picture?");
+                 if (r == true) {
+                     UploadCropPicture(imageData,true);
+                 } else {}                
+             });
+             document.querySelector('#btnZoomIn').addEventListener('click', function(){
+                 cropper.zoomIn();
+             });
+             
+             document.querySelector('#btnZoomOut').addEventListener('click', function(){
+                 cropper.zoomOut();
+             });
+         }
+         
+         function onclickData()
+         {
+             imageData = $('.image-editor').cropit('export');
+         }
+         function loadImagesection(){        
+             var doneuploading = {!doneuploading};
+             if(doneuploading)
+             {
+                 loadcropper();          
+             }
+         }
+         
+         function oncompCropping()
+         {
+             var doneuploadingtemp = {!doneuploadingCroping};
+             if(doneuploadingtemp)
+             {
+                 var parentid = "{!conobj.id}"; 
+                 window.opener.updateURL(parentid );
+             }
+         }
+         loadImagesection();
+      </script>
+   </apex:outputPanel>
+</apex:page>

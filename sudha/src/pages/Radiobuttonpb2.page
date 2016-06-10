@@ -1,0 +1,40 @@
+<apex:page controller="Radiobuttonpb2" >
+
+<apex:includeScript value="{!$Resource.jqmin}"/>
+<apex:form >
+<apex:pageBlock >
+<apex:commandButton onclick="getSelectedContact();"
+    value="next" id="btn3"
+    >
+</apex:commandButton>
+<apex:actionFunction name="next" action="{!next}" >
+    <apex:param name="selected" value="" />
+</apex:actionFunction> 
+ <script>
+ function getSelectedContact()
+        {
+
+            var $radio = $('input[name=group1]:checked');
+            var updateDay = $radio.val();
+            var id = $radio.attr('id');
+alert('id val'+id);
+             next(id);
+
+        }
+</script>
+  <apex:pageBlockTable value="{!myContacts}" var="c" id="agents" style="margin-top:1em; width:880px">
+
+
+
+             <apex:column >
+ <apex:facet name="header"></apex:facet>
+<input type="radio" name="group1" id="{!c.con.Id}" />
+ </apex:column>
+       <apex:column >
+        <apex:facet name="header">Agent Details</apex:facet>
+                <apex:outputField value="{!c.con.LastName}" />
+       </apex:column>
+</apex:pageBlockTable>
+</apex:pageBlock>
+</apex:form>
+</apex:page>

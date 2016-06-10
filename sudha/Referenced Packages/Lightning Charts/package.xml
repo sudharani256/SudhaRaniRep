@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Lightning Charts</fullName>
+    <apiAccessLevel>Unrestricted</apiAccessLevel>
+    <namespacePrefix>docmCharts</namespacePrefix>
+    <types>
+        <members>BaseDataProvider</members>
+        <members>BaseDataProvider_Test</members>
+        <members>DataListController</members>
+        <members>DataListController_Test</members>
+        <members>DonutChartDataProvider</members>
+        <members>IDOCMDataProvider</members>
+        <members>JsonDataResult</members>
+        <members>MockHttpResponseGen</members>
+        <members>PickListUtil</members>
+        <members>PickListUtil_Test</members>
+        <members>RESTUtil</members>
+        <members>RESTUtil_Test</members>
+        <members>RestServiceForTest</members>
+        <name>ApexClass</name>
+    </types>
+    <types>
+        <members>AreaChart</members>
+        <members>BarChart</members>
+        <members>DonutChart</members>
+        <members>FunnelChart</members>
+        <members>LineChart</members>
+        <members>PieChart</members>
+        <members>refreshComponentEvent</members>
+        <members>requires</members>
+        <members>requiresReady</members>
+        <name>AuraDefinitionBundle</name>
+    </types>
+    <types>
+        <members>DocM_Bootstrap</members>
+        <members>DocM_ChartJS</members>
+        <members>DocM_JQuery</members>
+        <members>DocM_JQueryTouch</members>
+        <members>DocM_Kendo</members>
+        <members>DocM_MapLocation</members>
+        <members>DocM_Misc</members>
+        <members>DocM_Require</members>
+        <members>DocM_Slider</members>
+        <name>StaticResource</name>
+    </types>
+    <version>33.0</version>
+</Package>

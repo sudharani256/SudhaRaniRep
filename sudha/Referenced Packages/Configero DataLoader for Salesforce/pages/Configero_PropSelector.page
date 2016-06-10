@@ -1,0 +1,124 @@
+<apex:page controller="PowerLoader.Configero_PropSelector" showHeader="false">
+<style>
+textarea { width: 100%; }
+</style>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js" type="text/javascript"></script>
+<script src="{!URLFOR($Resource.domain_js)}"></script>
+
+<script>
+var selectFunc = false;
+
+// do it this way to allow picklists to initialize
+var oldOnLoad = window.onload;
+window.onload = function() {
+    if (oldOnLoad) oldOnLoad();
+    init();
+}
+
+function saveData() {
+    var vals = [];
+    $('._cf_input').each(function(i, v) {
+        var a = $(v);
+        var f = (a.attr('class').split(' '))[0];
+        var o = $($(':input', $(v)).first());
+        if (o.is(':checkbox')) {
+            vals.push({field: f, value: o.attr('checked') ? '1' : '0'});
+        } else if (o.attr('tagName').toUpperCase() == 'SELECT') {
+            var v = '';
+            if (!o.attr('multiple')) {
+                if (!o.is(':disabled')) v = o.val();
+            } else {
+                var t = document.getElementById(o.attr('id') + '_selected');
+                for (var i = 0 ; i < t.options.length; i++) {
+                    if (v != '') v += ';';
+                    v += $(t.options[i]).text();
+                }
+            }
+            vals.push({field: f, value: v});
+        } else {
+            if(!window['editor']) {
+                vals.push({field: f, value: o.val()});
+            }else{
+                vals.push({field: f, value: editor.getData()});
+            }
+        }
+    });
+    selectFunc(vals);
+}
+
+function init() {
+   parent.$('iframe').each(function(iel, el) {
+       if (el.contentWindow == window) {
+           selectFunc = el.selectFunc;
+           if (el.initFunc) {
+              setupValues(el.initFunc());
+           }
+       }
+   });
+
+   // set the focus on the first field
+   $(':input:visible').first().focus();
+}
+function setupValues(vals) {
+    for (var i = 0; i < vals.length; i++) {
+        var x = vals[i].field;
+        var t = $($(':input', $('.' + x)).first());
+        if (t.is(':checkbox')) {
+            t.attr('checked', vals[i].value == '1').trigger('onclick');
+        } else if (t.length > 0 && t.attr('tagName').toUpperCase() == 'SELECT') {
+            // select - if not multiple, just pick the value
+            if (!t.attr('multiple')) {
+                t.val(vals[i].value).trigger('onchange');
+            } else {
+                // multiple - handle this one!
+                var vv = vals[i].value.split(';');
+                var yy = {};
+                for (var j = 0; j < vv.length; j++) {
+                    yy[vv[j]] = 1;
+                }
+                var idd = t.attr('id');
+                // first remove all selected
+                var y = document.getElementById(idd + '_selected');
+                var x = $(y);
+                if (y.options.length > 0) {
+                    for (var j = 0; j < y.options.length; j++) {
+                        y.options[j].selected = true;
+                    }
+                    x.trigger('ondblclick');
+                }
+
+                // now go down the list and select all ones that need to be selected
+                var y = document.getElementById(idd + '_unselected');
+                x = $(y);
+                if (y.options.length > 0) {
+                    for (var j = 0; j < y.options.length; j++) {
+                        if (yy[$(y.options[j]).text()]) {
+                            y.options[j].selected = true; 
+                        }
+                    }
+                    x.trigger('ondblclick');
+                }
+            }
+        } else {
+            if(!window['editor']){
+                t.val(vals[i].value)
+            }else{
+                editor.setData(vals[i].value);
+            }
+        }
+    }
+}
+</script>
+
+<apex:form onsubmit="saveData(); return false;">
+<apex:pageBlock >
+<apex:repeat value="{!fields}" var="f">
+<span class="{!f} _cf_input">
+<apex:pageBlockSection columns="1" >
+<apex:inputField value="{!obj[f]}" />
+</apex:pageBlockSection>
+</span>
+</apex:repeat>
+</apex:pageBlock>
+</apex:form>
+</apex:page>

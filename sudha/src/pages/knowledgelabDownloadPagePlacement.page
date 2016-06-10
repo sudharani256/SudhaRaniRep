@@ -1,0 +1,5 @@
+<apex:page extensions="knowledgelabDownloadPagePlacement"  standardController="Knowledgelab__c">
+<apex:form >
+ <apex:commandLink value="Download" action="{!DownloadTxtFile}"/>
+ </apex:form>
+</apex:page>

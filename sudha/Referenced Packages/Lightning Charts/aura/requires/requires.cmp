@@ -1,0 +1,6 @@
+<aura:component implements="force:appHostable" access="global" >
+    <aura:attribute name="styles" type="String[]" access="global" />
+	<aura:attribute name="initScripts" type="Aura.Action" access="global" />
+    <aura:registerEvent name="docmCharts:requiresReady" type="docmCharts:requiresReady" />
+	<aura:handler name="init" value="{!this}" action="{!c.init}"/>
+</aura:component>

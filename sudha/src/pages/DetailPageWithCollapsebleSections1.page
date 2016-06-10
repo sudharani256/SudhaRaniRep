@@ -1,0 +1,100 @@
+<apex:page tabstyle="Campaign" controller="DetailPageWithCollapsebleSections1" showheader="true">
+<style>
+#table1,#table1t {
+    border: 1px solid yellow;
+}
+
+#col2,#col1,#col2t,#col1t{
+    background-color: blue;
+    color: yellow;
+    border :2px
+}
+  </style>
+<script>
+        function switchMenu(obj,obj1,obj2) 
+        {
+        
+        //http://www.forcetree.com/2010/04/expand-collapse-pageblock-table-columns.html
+            var el = document.getElementById(obj);                                       
+            if ( el.style.display != 'none' ) {
+            el.style.display = 'none';
+            }
+            else {
+            el.style.display = '';
+            }
+            var e2 = document.getElementById(obj1);                                       
+            if ( e2.style.display != 'none' ) {
+            e2.style.display = 'none';
+            }
+            else {
+            e2.style.display = '';
+            }
+             var e3 = document.getElementById(obj2);                                       
+            if ( e2.style.display != 'none' ) {
+            e3.style.display = 'none';
+            }
+            else {
+            e3.style.display = '';
+            }
+
+        }
+</script>
+    <apex:pageblock >     
+    <apex:pageBlockSection collapsible="true" title="Events">
+    <apex:pageBlockSectionItem >
+     <apex:outputPanel >
+                  
+        <apex:outputpanel id="plusimage">
+        <apex:image url="{!$Resource.Plus_Image}" onclick="switchMenu('{!$Component.inlinetablesec}','{!$Component.minusimage}','{!$Component.plusimage}')" title="Expand - Team Member's"/> 
+                 
+        <apex:outputText value="{!accsandtmember1.campaign.name}"> </apex:outputText>
+     
+                             </apex:outputpanel>
+                    <apex:outputpanel id="minusimage" style="display:none;">
+                          <apex:image url="{!$Resource.Minus_image}" onclick="switchMenu('{!$Component.inlinetablesec}','{!$Component.plusimage}','{!$Component.minusimage}')" title="Collapse - Team Member's"/>
+                    </apex:outputpanel>
+                    <apex:outputpanel id="inlinetablesec" style="display:none;">
+                                               
+                             <table border="1" id='table1'>
+                            <tr>
+                            <td id='col1'>
+                                        <apex:outputtext value="{!accsandtmember1.lead.name}"/></td>
+<td id='col2'>                                         <apex:outputtext value="{!accsandtmember1.lead.status}"/></td>
+</tr>
+</table> 
+                            
+                   </apex:outputpanel> 
+                        </apex:outputPanel>
+      
+        </apex:pageBlockSectionItem>
+        <apex:pageBlockSectionItem >
+        <apex:outputPanel >
+                  
+        <apex:outputpanel id="plusimage">
+        <apex:image url="{!$Resource.Plus_Image}" onclick="switchMenu('{!$Component.inlinetablesec}','{!$Component.minusimage}','{!$Component.plusimage}')" title="Expand - Team Member's"/> 
+                 
+        <apex:outputText value="{!accsandtmember1.campaign.name}"> </apex:outputText>
+     
+                             </apex:outputpanel>
+                    <apex:outputpanel id="minusimage" style="display:none;">
+                          <apex:image url="{!$Resource.Minus_image}" onclick="switchMenu('{!$Component.inlinetablesec}','{!$Component.plusimage}','{!$Component.minusimage}')" title="Collapse - Team Member's"/>
+                    </apex:outputpanel>
+                    <apex:outputpanel id="inlinetablesec" style="display:none;">
+                                                
+                           <table border="1" id='table1t'>
+                            <tr>
+                            <td id='col1t'>
+                                        <apex:outputtext value="{!accsandtmember1.lead.name}"/></td>
+<td id='col2t'>                                         <apex:outputtext value="{!accsandtmember1.lead.status}"/></td>
+</tr>
+</table> 
+                            
+                   </apex:outputpanel> 
+                        </apex:outputPanel>
+       
+        </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+      
+         
+    </apex:pageblock>
+</apex:page>

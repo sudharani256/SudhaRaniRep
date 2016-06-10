@@ -1,0 +1,31 @@
+<apex:component access="global">
+<style type="text/css">
+ #configero-footer{
+  background-color: #343836;
+  border-radius: 10px;
+  box-shadow: 3px 3px 10px #ccc;
+ }
+ 
+ #configero-footer td{
+  padding: 5px 10px 5px 10px;
+  color: white;
+ }
+ #configero-footer td a{
+  color: #CCCCCC;
+ }
+</style>
+
+<table id="configero-footer" width="100%" style="border-top: 1px solid #DBDBDB; padding-top: 10px;margin-top: 10px;" cellspacing="0" cellpadding="0">
+    <tr>
+        <td valign="top">
+            <p>Designed by:</p>
+            <p><a target="_blank" href="http://www.configero.com"><apex:image value="{!$Resource.PowerLoader__ConfigeroLogo}" alt="Configero Logo" width="175px"/></a></p>    
+            <p><a href="http://www.configero.com" target="_blank">www.configero.com</a><br />
+               <a href="mailto:info@configero.com">info@configero.com</a></p>
+        </td>
+        <td align="right" valign="top">
+            <a target="_blank" href="http://www.configero.com/apps/configero-grid/grid-customizations"><apex:image value="{!$Resource.PowerLoader__GridCustomizationsBanner}" alt="GridCustomizationsBanner"/></a>
+        </td>
+    </tr>
+</table>
+</apex:component>

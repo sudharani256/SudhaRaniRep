@@ -1,0 +1,11 @@
+<apex:page controller="MailPreviewBeforesendwithAttachments4" showheader="false" standardstylesheets="false">
+    <apex:form >
+    <apex:pagemessages id="errorMessage">
+    </apex:pagemessages>
+        <apex:repeat id="theRepeat" value="{!bodyWithLineBreaks}" var="string">
+            <apex:outputtext id="theValue" value="{!string}">
+ 
+        </apex:outputtext></apex:repeat>
+        <apex:outputtext id="subject" value="{!subject}">
+    </apex:outputtext></apex:form>
+</apex:page>

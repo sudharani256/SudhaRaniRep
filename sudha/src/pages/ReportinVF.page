@@ -1,0 +1,46 @@
+<apex:page controller="AnalyticsController">
+<style>
+label {
+    font-weight: bold;
+}
+#filters {
+    overflow: hidden;
+    width: 100%
+}
+#filterBox {
+    float: left;
+    align: center;
+    padding: 5px 5px 5px 0px;
+}
+</style>
+<apex:form >
+    <apex:outputLabel value="Select Report"/> 
+    <apex:selectList value="{!reportId}" multiselect="false" size="1">
+        <apex:selectOptions value="{!availableReports}"/>
+    </apex:selectList>
+    <apex:commandButton action="{!getReportInfo}" value="Get Report Filters" reRender="report"/><br/>
+
+    <apex:outputPanel id="report" layout="block">
+        <apex:outputPanel rendered="{!reportId != null}">
+            <div id="filters">
+                <apex:repeat value="{!availableColumnFilters}" var="colFilter">
+                    <div id="filterBox">
+                        <apex:outputLabel >{!colFilter.label}</apex:outputLabel><br/>
+                        <apex:selectList value="{!colFilter.operator}" size="1" multiselect="false" style="width: 100px;">
+                            <apex:selectOption itemLabel="--None--" itemValue=""/>
+                            <apex:selectOptions value="{!availableDataTypeFilterOperators[colFilter.dataType]}"/>
+                        </apex:selectList>
+                        <apex:inputText value="{!colFilter.value}"/>
+                    </div>   
+                </apex:repeat>
+            </div>
+
+            <apex:commandButton value="Get Chart with Filters" reRender="chart"/><br/>
+
+            <apex:outputPanel layout="block" id="chart">
+                <analytics:reportChart reportId="{!reportId}" filter="{!chartFilter}"/>
+            </apex:outputPanel>
+        </apex:outputPanel>
+    </apex:outputPanel>
+</apex:form>
+</apex:page>

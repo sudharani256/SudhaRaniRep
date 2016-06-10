@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 15.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 width="120px" height="120px" viewBox="0 0 120 120" enable-background="new 0 0 120 120" xml:space="preserve">
+<rect x="20.686" y="15.365" fill="none" width="80" height="80"/>
+<g>
+	<g>
+		<g>
+			<path fill="#AEBC21" d="M120,107.885c0,6.691-5.516,12.115-12.321,12.115H12.321C5.516,120,0,114.576,0,107.885V12.116
+				C0,5.424,5.516,0,12.321,0h95.357C114.484,0,120,5.424,120,12.116V107.885z"/>
+		</g>
+	</g>
+</g>
+<g>
+	<circle fill="#FDFEFF" cx="22.886" cy="61.365" r="3.201"/>
+	<circle fill="#FDFEFF" cx="43.686" cy="51.765" r="3.2"/>
+	<circle fill="#FDFEFF" cx="59.686" cy="38.965" r="3.2"/>
+	<circle fill="#FDFEFF" cx="75.686" cy="48.565" r="3.2"/>
+	<circle fill="#FDFEFF" cx="96.485" cy="29.365" r="3.2"/>
+	<circle fill="#FDFEFF" cx="22.886" cy="83.766" r="3.199"/>
+	<circle fill="#FDFEFF" cx="43.686" cy="86.966" r="3.2"/>
+	<circle fill="#FDFEFF" cx="59.686" cy="74.165" r="3.2"/>
+	<circle fill="#FDFEFF" cx="75.686" cy="90.165" r="3.2"/>
+	<circle fill="#FDFEFF" cx="96.485" cy="70.966" r="3.2"/>
+	<polyline fill="none" stroke="#FAFDFF" stroke-width="2" stroke-linecap="round" stroke-miterlimit="10" points="22.886,61.365 
+		43.686,51.765 59.686,38.965 75.686,48.565 96.485,29.365 	"/>
+	<polyline fill="none" stroke="#FDFEFF" stroke-width="2" stroke-linecap="round" stroke-miterlimit="10" points="22.886,83.766 
+		43.686,86.965 59.686,74.166 75.686,90.166 96.485,70.965 	"/>
+</g>
+</svg>

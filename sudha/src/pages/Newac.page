@@ -1,0 +1,18 @@
+<apex:page standardController="Account" extensions="Checkierrror">
+
+    <apex:form >
+    <apex:pageMessages ></apex:pageMessages>
+        <apex:pageBlock title="My Content" mode="edit">
+            <apex:pageBlockButtons >
+                <apex:commandButton action="{!savein}" value="Save"/>
+            </apex:pageBlockButtons>
+            <apex:pageBlockSection title="My Content Section" columns="2">
+            <a href='/00128000008lj3K' >Click</a>
+                <apex:inputField value="{!account1.name}"/>
+                <apex:inputField value="{!account1.site}"/>
+                <apex:inputField value="{!account1.type}"/>
+                <apex:inputField value="{!account1.accountNumber}"/>
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+    </apex:form>
+</apex:page>

@@ -1,0 +1,1125 @@
+<apex:component controller="PowerLoader.Configero_GridApp" extensions="PowerLoader.Configero_Framework" access="global">
+<c:Configero_Framework />
+<script>
+/*** extensions off the framework ***/
+dhtmlXGridObject.prototype.CF_clearSearchHistory = function() {
+    this.CF_dataSequence = [];
+    this.CF_dataById = false;
+    this.CF_relatedById = {};
+    this.CF_indexByField = {};
+}
+var CF_GRID_PARAMS = {};
+function CF_getGridParam(gridName, param) {
+    if (!CF_GRID_PARAMS[gridName]) return null;
+    return CF_GRID_PARAMS[gridName][param];
+}
+function CF_setGridParam(gridName, param, value) {
+    if (!CF_GRID_PARAMS[gridName]) CF_GRID_PARAMS[gridName] = {};
+    if (value == null) {
+        delete CF_GRID_PARAMS[gridName][param];
+    } else {
+        CF_GRID_PARAMS[gridName][param] = value;
+    }
+}
+
+function CF_refetchAndMergeRecord(gridName, objType, idd) {
+    // fetch just this one record and merge into the list
+    // for now just reload the whole grid and select the idd in the grid upon load
+    if (!gridName || gridName == '') return;
+    var grid = window[gridName];
+    var f = CF_getGridParam(gridName, 'refetchAndMergeFunc');
+    var func = function(idd) {
+        grid.CF_refreshSpecificRecordIds([idd]);
+        /*
+        if (!grid.CF_dataById[idd]) {
+            grid.CF_dataSequence.unshift(idd);
+        }
+        PM_setGridParam(gridName, 'autoScrollToId', idd);
+        refreshResults(gridName, objType);
+        */
+    }
+    if (f) {
+        f(func, idd);
+    } else {
+        func(idd);
+    }
+}
+function CF_gridGetObjectMeta(obj, success_cb, failure_cb) {
+    CF_beginProgress('Loading Metadata');
+    {!$RemoteAction.Configero_GridApp.getObjectMeta}(obj, function(result, event) {
+        if (event.status == true) {
+            // success - check picklists
+            eval('result = ' + result);
+            var picklistsToLoad = [];
+            var resByName = {};
+            for (var i = 0; i < result.fields.length; i++) {
+                if (result.fields[i].DisplayType == 'MULTIPICKLIST' || result.fields[i].DisplayType == 'PICKLIST') {
+                    if (result.fields[i].PicklistVals) {
+                        // already loaded
+                    } else {
+                        // need to load these - possibly over the governance limit
+                        picklistsToLoad.push(result.fields[i].Name);
+                        resByName[result.fields[i].Name] = result.fields[i];
+                    }
+                }
+            }
+
+            var endFunc = function() {
+                // go through all the picklists and set the defaults now
+                for (var i = 0; i < result.fields.length; i++) {
+                    if (result.fields[i].PicklistVals) {
+                        var defaultVal = null;
+                        for (var j = 0; j < result.fields[i].PicklistVals.length; j++) {
+                            if (result.fields[i].PicklistVals[j].isDefault) {
+                                defaultVal = result.fields[i].PicklistVals[j].value;
+                                break;
+                            }
+                        }
+                        if (defaultVal) { 
+                            result.fields[i].DefaultValue = defaultVal;
+                        }
+                    }
+                }
+                success_cb(result);
+                CF_endProgress();
+            }
+            if (picklistsToLoad.length > 0) {
+                // do this in batches of 100
+                var overallFail = false;
+                var batchesToLoad = Math.ceil(picklistsToLoad.length / 100.0);
+                var batchesLoaded = 0;
+                for (var i = 0; i < batchesToLoad && !overallFail; i++) {
+                    // call the API to load the next batch - hopefully there aren't more than 200 picklists
+                    var plT = picklistsToLoad.splice(0, 100);
+                    {!$RemoteAction.Configero_GridApp.getObjectPicklistMeta}(obj, plT, function(pl_result, pl_event) {
+                        if (!overallFail) {
+                            if (pl_event.status == true) {
+                                eval('pl_result = ' + pl_result);
+                                for (var x in pl_result) {
+                                    resByName[x].PicklistVals = pl_result[x];
+                                }
+                                batchesLoaded++;
+                                if (batchesToLoad == batchesLoaded) endFunc();
+                            } else {
+                                overallFail = true;
+                                alert(pl_event.message);
+                                if (failure_cb) failure_cb();
+                                CF_endProgress();
+                            }
+                        }
+                    }, {escape: false});
+                }
+            } else {
+                endFunc();
+            }
+        } else {
+            // failure
+            alert(event.message);
+            if (failure_cb) failure_cb();
+            CF_endProgress();
+        }
+    }, {escape: false});
+}
+
+var DEFAULT_COLUMN_WIDTH = 120;
+var SELECT_SOMETHING_TEXT = 'Please select a record to continue.';
+var fieldsLoaded = {};
+var allFields = {};
+var allFieldsByAPIName = {};
+var allObjectProps = {};
+var allChildRelationships = {};
+
+var allTemplates = {};
+var selectedTemplate = {}; // by group (in case same object needs to be displayed multiple times in diff grids on same page)
+
+var ndDataSequence = {}; // by grid name
+var mygrid;
+var loadPreviousResults = {}; // by grid name
+
+var fieldsToSelPendingGrid;
+var fieldsToSelActiveGrid;
+
+function destroyMainGrid() {
+    // go through the dataSequence and remove records that are temporary
+    if (!loadPreviousResults['mygrid']) ndDataSequence['mygrid'] = [];
+    if (mygrid) {
+        if (!ndDataSequence['mygrid']) ndDataSequence['mygrid'] = [];
+        for (var i = 0; i < mygrid.CF_dataSequence.length; i++) {
+            if (!$.isTemporaryId(mygrid.CF_dataSequence[i])) {
+                ndDataSequence['mygrid'].push(mygrid.CF_dataSequence[i]);
+            }
+        }
+        mygrid.CF_destroy();
+        mygrid = false;
+    }
+}
+
+function addOpenLinkToFieldDef(fieldDef, dynamicBegin) {
+    dynamicBegin = dynamicBegin || fieldDef.length;
+    for (var i = 0; i < fieldDef.length; i++) {
+        if (fieldDef[i].dynamicFieldIndex == 0) {
+            dynamicBegin = i;
+            break;
+        }
+    }
+
+    // don't care about view link if don't have a way to open it
+    fieldDef.splice(dynamicBegin, 0, {'name':'','sort':'str','width':'30','align':'center','field':'__link','type':'link','value_func':function(rec){return '<img title="Open" src="{!URLFOR($Resource.AppIcons, '/actions/go-next.png')}" />^/' + rec.Id + '^_blank^Open in new window'; },'filter':'','skip_export':true,'skip_track_changes':true,allowResize:'false'});
+    return dynamicBegin + 1;
+}
+
+function getTemplateById(objType, idd) {
+  if (!idd) idd = '';
+  var ret = null;
+  for (var i = 0; i < allTemplates[objType].length; i++) {
+      if (allTemplates[objType][i].Id == idd) {
+        ret = allTemplates[objType][i];
+        break;
+      }
+  }
+  return ret;
+}
+function refreshResults(gridName, objType) {
+    loadPreviousResults[gridName] = true;
+    beginTemplateSearch(objType);
+}
+function beginNewSearch(gridName, objType) {
+  if (window[gridName]) window[gridName].CF_clearSearchHistory();
+  ndDataSequence[gridName] = [];
+  beginTemplateSearch(objType);
+}
+
+function beginTemplateSearch(objType) {
+  // get field info for this template
+  var template = getTemplateById(objType, selectedTemplate[objType]);
+  beginBulkSearch(objType, template[CF_NAMESPACE_PREFIX + 'BulkEditTemplateFields__r']);
+}
+function beginBulkSearch(objName, templateFields) {
+  fieldsLoaded[objName] = [];
+  var prevFilters = false;
+  var prevSort = false;
+  //if (loadPreviousResults['mygrid'] && mygrid) {
+  if (mygrid) {
+    prevFilters = mygrid.CF_getFilters();
+    prevSort = mygrid.CF_sortSequence;
+  }
+  rebuildGrid(templateFieldsToFieldDef(fieldsLoaded[objName], templateFields, allFieldsByAPIName[objName], objName, CF_getGridParam('mygrid', 'hiddenFields')));
+  if (loadPreviousResults['mygrid']) {
+      delete loadPreviousResults['mygrid'];
+      if (!ndDataSequence['mygrid']) ndDataSequence['mygrid'] = [];
+      mygrid.CF_dataSequence = ndDataSequence['mygrid'].slice(0);
+      ndDataSequence['mygrid'] = [];
+      mygrid.CF_dataById = {};
+  }
+  if (prevFilters) {
+      var filterMeth = mygrid.attachEvent('CF_onLoadComplete', function() {
+        mygrid.CF_applyFilters(prevFilters);
+        mygrid.detachEvent(filterMeth);
+      });
+  }
+  if (prevSort) {
+    var sortMeth = mygrid.attachEvent('CF_onLoadComplete', function() {
+        mygrid.CF_forceSort(prevSort);
+        mygrid.detachEvent(sortMeth);
+    });
+  }
+  mygrid.CF_beginSearch();
+}
+function determineDefaultTemplateFromList(lst, objType) {
+    var val = '';
+    var valOwner = '';
+    for (var i = 0; i < lst.length; i++) {
+        // only use a default (our default is prefereably vs someone else's public default) when one is not previously picked or if this is default and private (then it overrides everything else)
+        if (lst[i][CF_NAMESPACE_PREFIX + 'Default__c']) {
+            if (val == '') {
+                val = lst[i].Id;
+                valOwner = lst[i].OwnerId;
+            } else if (lst[i][CF_NAMESPACE_PREFIX + 'Private__c'] || (!lst[i][CF_NAMESPACE_PREFIX + 'Private__c'] && lst[i].OwnerId == '{!$User.Id}')) {
+                if (val != '' && valOwner == '{!$User.Id}') {
+                    // we already have one from before that's ours - keep it unless this one has the same name as objType
+                    if (lst[i].Name != objType) continue;
+                }
+                val = lst[i].Id;
+                valOwner = lst[i].OwnerId;
+            }
+        }
+    }
+    return val;
+}
+function templateFieldsToFieldDef(fieldsLoaded, templateFields, allFieldsByAPIName, obj, hiddenFields) {
+  // for bulk editing
+  var fieldDef = [
+      {'name':'','sort':'na','width':'0','type':'rotxt','field':'__globalfilter','value_func':function(rec){return rec.Id},'filter':'#global_filter','skip_export':true,'skip_track_changes':true,allowResize:'false'},
+
+      // width chanegs automatically if bulk edit turned on
+      {'name':'','sort':'str','width':'0','align':'center','type':'ch','field':'__selectall','value_func':function(rec){return 0},'filter':'#master_rah_checkbox','skip_export':true,'bulk_edit_override':'','skip_track_changes':true,'selalltype':'master',allowResize:'false'},
+      {'name':'<div title="Errors" class="error_icon" />','export_label':'Errors','sort':'str','width':'0','align':'center','field':'__error','type':'err','value_func':function(rec){return '';},'filter':'#error_filter','skip_track_changes':true,allowResize:'false'}
+  ];
+
+  var numGroup = 0;
+  for (var i = 0; i < templateFields.length; i++) {
+    if (templateFields[i][CF_NAMESPACE_PREFIX + 'Group__c']) numGroup++;
+  }
+
+  if (numGroup > 0) {
+      fieldDef.push(
+          {'name':'','sort':'na','width': (numGroup * 18) + 8,'type':'tree','field':'__group','value_func':function(rec){return ''},'filter':'','skip_export':true,'skip_track_changes':true,allowResize:'false'}
+      );
+  }
+
+  if (hiddenFields && !$.isEmptyObject(hiddenFields)) {
+    var seenFields = {};
+      for (var i = 0; i < templateFields.length; i++) {
+        seenFields[templateFields[i].Name] = 1;
+      }
+      for (var x in hiddenFields) {
+        if (seenFields[x]) continue;
+        var xaf = hiddenFields[x];
+        xaf['Name'] = x;
+        if (!xaf[CF_NAMESPACE_PREFIX + 'Width__c']) xaf[CF_NAMESPACE_PREFIX + 'Width__c'] = '0';
+        xaf['Hidden'] = true;
+        templateFields.push(xaf);
+      }
+  }
+
+  // build fieldDef from list of fields for this template
+  for (var i = 0; i < templateFields.length; i++) {
+      var f = templateFields[i];
+      var n = f.Name;
+      var a = allFieldsByAPIName[n];
+      if (!a) continue;  // maybe the field is no longer valid yet exists in the template?
+      fieldsLoaded.push(n);
+
+      var fd = {'name': a.Label, 'soapType': a.SoapType, 'dynamicFieldIndex': i, 'sort':'str','defaultvalue':a.DefaultValue,'width':f[CF_NAMESPACE_PREFIX + 'Width__c'], 'summary':f[CF_NAMESPACE_PREFIX + 'SummaryType__c'], 'align':'left', 'field': a.Name, 'filter':'#textregex_filter', 'createable': a.IsCreateable, 'updateable': a.IsUpdateable, 'controller': a.Controller, 'object': obj, 'helpText': a.HelpText};
+      if (f.Hidden) fd.hidden = true;
+
+      if (f[CF_NAMESPACE_PREFIX + 'SplitAt__c']) fd.split = true;
+      if (f[CF_NAMESPACE_PREFIX + 'Group__c']) fd.group = true;
+
+      var readOnly = a.CF_ForceReadonly || (!a.IsUpdateable && !a.IsCreateable); // || a.Name == 'RecordTypeId';
+      if (a.CF_ForceWritable) readOnly = false;
+
+      if (a.SoapType == 'BOOLEAN') {
+          // checkbox
+          fd['align'] = 'center';
+          fd['type'] = readOnly ? 'chro' : (getDependencyChain(allFieldsByAPIName, a.Name).length > 0 ? 'chvf' : 'ch');
+          fd['value_func'] = function(rec, fld) { return $.strToBool(rec[fld['field']]) ? '1' : '0' };
+          fd['filter'] = '#yesno_filter';
+      } else if (a.SoapType == 'DATE') {
+          fd['sort'] = 'date';
+          fd['align'] = 'center';
+          fd['type'] = readOnly ? 'rotxt' : 'dhxCalendarA';
+          fd['filter'] = '#date_filter';
+      } else if (a.SoapType == 'DATETIME') {
+          fd['sort'] = 'date';
+          fd['align'] = 'center';
+          fd['type'] = readOnly ? 'rotxt' : 'CF_dhxCalendarTime';
+          fd['filter'] = '#date_filter';
+      } else if (a.SoapType == 'DOUBLE' || a.SoapType == 'INTEGER') {
+          fd['sort'] = 'int';
+          fd['align'] = 'right';
+          fd['type'] = readOnly ? 'ron' : 'edn';
+          fd['filter'] = '#numeric_filter';
+          var s = '';
+          for (var j = 0; j < a.Scale; j++) s += '0';
+          if (s != '') s = '.' + s;
+          fd['numberFormat'] = '0,000' + s; // don't display a symbol - it may be multi currency
+          if (a.DisplayType == 'PERCENT') {
+            fd['numberFormat'] += '%';
+          }
+      } else if (a.DisplayType == 'PICKLIST') {
+          // if this object has record types OR if this field is part of a dependency chain, use VF
+          fd['type'] = readOnly ? 'corotxt_ro' : ((allObjectProps[obj] && allObjectProps[obj]['hasRecordTypes']) || getDependencyChain(allFieldsByAPIName, a.Name).length > 0 ? 'plvf' : 'corotxt');
+          fd['PicklistVals'] = a['PicklistVals'];
+          //fd['filter'] = '#plist_filter'; // get rid of for now - need to show only displayed values?  What about filtering on blank vs showing all?
+          fd['sort'] = 'pl';
+      } else if (a.DisplayType == 'MULTIPICKLIST' ) {
+          fd['type'] = readOnly ? 'rotxt' : 'vf';
+          fd['PicklistVals'] = a['PicklistVals'];
+      } else if (a.IsHtmlFormatted) {
+          if(a.DisplayType == 'TEXTAREA') {
+            fd['type'] = readOnly ? 'ro' : 'edtxtvf';
+          } else {
+            fd['type'] = readOnly ? 'ro' : 'ed';
+          }
+      } else if (a.DisplayType == 'TEXTAREA') {
+          fd['type'] = readOnly ? 'rotxt' : 'edtxtvf';
+      } else if (a.ReferenceTo) {
+          if (fd['field'] == 'RecordTypeId') {
+            fd['type'] = readOnly ? 'lkupnolinkro' : 'lkupnolink';
+          } else {
+              fd['type'] = readOnly ? 'lkupro' : 'lkupcombo';
+          }
+      } else {
+          fd['type'] = readOnly ? 'rotxt' : 'edtxt';
+      }
+      // if is NOT updateable, then disable bulk edit
+      if (readOnly) {
+          fd['skip_track_changes'] = true;
+      }
+      // if is a reference field, add bulk edit info
+      if (a.ReferenceTo) {
+          fd['related'] = a.ReferenceTo;
+          fd['related_field'] = a.Relationship;
+      }
+      fd['defaultvalue'] = a.DefaultValue;
+      fieldDef.push(fd);
+  }
+  return fieldDef;
+}
+// override as needed in extended framework
+function preprocessMetaResults(result) { }
+function postProcessMetaResults(allFields, objType) { }
+function buildDefaultTemplate(allObjectProps, allFieldsByAPIName, opts) {
+    var def = [];
+    if (!opts) opts = {};
+    var keys = $.assocKeys(allFieldsByAPIName);
+    keys.sort();
+
+    // first go through and get all NameFields OR RecordType
+    var seenKeys = {};
+    for (var i = 0; i < keys.length; i++) {
+        if (allFieldsByAPIName[keys[i]].IsNameField || keys[i] == 'RecordTypeId') {
+            var xar = {};
+            xar['Name'] = keys[i];
+            xar[CF_NAMESPACE_PREFIX + 'Width__c'] = DEFAULT_COLUMN_WIDTH;
+            if (allFieldsByAPIName[keys[i]].IsNameField) {
+                def.unshift(xar);
+            } else {
+                def.push(xar);
+            }
+            seenKeys[keys[i]] = 1;
+        }
+    }
+
+    for (var i = 0; i < keys.length && (opts['allFields'] || keys.length < 15 || def.length < 10); i++) {
+        if (seenKeys[keys[i]]) continue;
+
+        var xar = {};
+        xar['Name'] = keys[i];
+        xar[CF_NAMESPACE_PREFIX + 'Width__c'] = DEFAULT_COLUMN_WIDTH;
+        def.push(xar);
+    }
+    return def;
+}
+
+function addGenericRelationshipTab(objType, tabs, toolbarPostInit, title, defaultRelationshipObject, defaultRelationshipField, gridOnly) {
+   for (var i = 0; i < allChildRelationships[objType].length; i++) {
+        if (allChildRelationships[objType][i].name == 'Note' || allChildRelationships[objType][i].name == 'Attachment') continue;
+
+        // has something else - add the tab for relationships
+        tabs.push(getGenericRelationshipTab(objType, __cf._rndstr(10), toolbarPostInit, title, defaultRelationshipObject, defaultRelationshipField, gridOnly));
+        break;
+   }
+}
+function getGenericRelationshipTab(objType, tv, toolbarPostInit, title, defaultRelationshipObject, defaultRelationshipField, gridOnly) {
+    if (!title) title = 'Relationships';
+    return {'title': title,
+        'name': tv + '_relationship_tab',
+        'var':  tv + '_relationship_tab',
+        'content': {
+            'type': 'text',
+            'text': ''
+        },
+        'postInit': function(obj) {
+             var postInitComplete = false;
+             CF_setGridParam(tv + '_relationship_grid', 'editUrlFunc', function() {
+                 var idd = mygrid.getSelectedId();
+                 if (!$.isLiveId(idd)) return;
+                 return CF_NAMESPACE_PREFIX + 'Configero_DetailEditLaunch?cl=' + escape(obj.CF_childObjType) + '&fde=' + escape(obj.CF_childFieldType) + '&' + escape(obj.CF_childFieldType) + '=' + escape(idd);
+             });
+             var l = obj.attachLayout(gridOnly ? "1C" : "2E");
+             var a = l.cells('a');
+             var xx = $('<table border="0" cellspacing="2" cellpadding="2"><tr><td><b>Object:</b></td><td><select class="object_name"><option value=""></option></select></td><td><b>Relationship:</b></td><td><select class="relationship_name"></select></span></td></tr></table>');
+             var onn = $('.object_name', xx);
+             var ds = $('.relationship_name', xx);
+             for (var i = 0; i < allChildRelationships[objType].length; i++) {
+                 if (allChildRelationships[objType][i].name == 'Note' || allChildRelationships[objType][i].name == 'Attachment') continue;
+                 onn.append($('<option />').val(i).text(allChildRelationships[objType][i].name));
+             }
+             onn.change(function() {
+                 // destroy the grid if it's already loaded
+                 obj.CF_destroyGrid();
+
+                 // populate the child relationship names
+                 ds.find('option').remove();
+
+                 var val = $(this).val();
+                 if (val == '') return;
+
+                 ds.append($('<option />'));
+
+                 for (var i = 0; i < allChildRelationships[objType][val].relationships.length; i++) {
+                     ds.append($('<option />').attr('value', i).text(allChildRelationships[objType][val].relationships[i].relationshipName));
+                 }
+                 if (ds.children().length == 2) {
+                     // select the only child by default
+                     ds.val(ds.children().last().attr('value'));
+                 }
+                 ds.change(); // trigger the change event
+             });
+             ds.change(function() {
+                 obj.CF_destroyGrid();
+
+                 var val = $(this).val();
+                 if (val == '') return;
+
+                 // create the grid and load the selected record
+                 if (postInitComplete) {
+                    obj.CF_onSelect();
+                 }
+             });
+
+             if (!gridOnly) {
+                 a.attachObject(xx.get(0));
+                 a.fixSize(true, true);
+                 a.setHeight(30);
+                 a.hideHeader();
+             }
+
+             var b = l.cells(gridOnly ? 'a' : 'b');
+             b.hideHeader();
+
+             obj.CF_processed = false;
+             obj.CF_gridLoaded = function() {
+                 var v = ds.val();
+                 return v && v != '';
+             }
+             obj.CF_loadData = function() {
+                 var g = window[tv + '_relationship_grid'];
+                 g.CF_resetGrid();
+                 g.CF_beginSearch();
+             }
+             obj.CF_redrawGrid = function(fieldDef, postRedrawFunc) {
+                 if (!fieldDef) {
+                     var templateFields = getTemplateById(obj.CF_childObjType, selectedTemplate[obj.CF_templateName])[CF_NAMESPACE_PREFIX + 'BulkEditTemplateFields__r'];
+                     var fl = [];
+                     fieldsLoaded[obj.CF_templateName] = fl;
+                     fieldDef = templateFieldsToFieldDef(fl, templateFields, allFieldsByAPIName[obj.CF_childObjType], obj.CF_childObjType, CF_getGridParam(tv + '_relationship_grid', 'hiddenFields'));
+                 }
+                 this.CF_destroyGrid();
+
+                 addOpenLinkToFieldDef(fieldDef);
+
+                 var tb = getToolbar(obj.CF_childObjType, tv + '_relationship_grid');
+                 for (var i = 0; i < tb.length; i++) {
+                     if (tb[i].id == 'view_refresh') {
+                         tb[i].onClick = function() { obj.CF_loadData(); }
+                     } else if (tb[i].id == 'add_inline') {
+                        tb[i].onClick = function(grid) {
+                             var idd = mygrid.getSelectedId();
+                             if (!$.isLiveId(idd)) return;
+
+                             var newId = grid.CF_addBlankRow();
+                             grid.CF_updateLookupValueInGrid(newId, grid.CF_indexByField[obj.CF_childFieldType], idd, '-- Populated on Save --');
+                        }
+                     }
+                 }
+
+                 __cf._attachGrid(b, {
+                     'var': tv + '_relationship_grid',
+                     grid: {
+                         fields: fieldDef,
+                         allowFilter: true,
+                         allowBulkEdit: true,
+                         postInit: function(grid) {
+                             grid.attachEvent('onResizeEnd', function() { saveTemplateToUserOwnedTemplate(grid, obj.CF_childObjType); });
+
+                             // when hide show fields is selected
+                             grid.CF_fieldDefChangedHandler = function(objType, templateFields, callbackFunc) {
+                                 // for now just tell obj to reload everything - later we can worry about rebuilding with the new fielddef
+                                 var fl = [];
+                                 fieldsLoaded[obj.CF_templateName] = fl;
+                                 var fieldDef = templateFieldsToFieldDef(fl, templateFields, allFieldsByAPIName[obj.CF_childObjType], obj.CF_childObjType, CF_getGridParam(grid.CF_var, 'hiddenFields'));
+
+                                 obj.CF_redrawGrid(fieldDef, callbackFunc);
+                             }
+
+                             grid.CF_searchGetIdsFunc = function(loadPageSize, searchResultsHandler, extraParams) {
+                                 var idd = mygrid.getSelectedId();
+                                 if (!idd || idd == '' || $.isTemporaryId(idd)) {
+                                     grid.callEvent('CF_onLoadComplete',[]);
+                                     CF_endProgress();
+                                     return;
+                                 }
+                                 {!$RemoteAction.Configero_GridApp.getDrillUpIds}(obj.CF_childObjType, obj.CF_childFieldType, [idd], function(res, event) {
+                                     if (event.status == true) {
+                                         var res2 = [];
+                                         for (var i = 0; i < res.length; i++) {
+                                             res2.push('"' + res[i].Id + '"');
+                                         }
+                                         // convert it back to a Json array - since it's just IDs, no need to worry about escaping
+                                         res = {ids: '[' + res2.join() + ']', results: '[]'};
+                                     }
+                                     searchResultsHandler(res, event);
+                                 }, extraParams);
+                             }
+                             grid.CF_searchLoadDataForIdsFunc = function(lastIdBatch, handleLoadResults, extraParams) {
+                                 {!$RemoteAction.Configero_Framework.getDataForIds}(obj.CF_childObjType, fieldsLoaded[obj.CF_templateName], lastIdBatch, handleLoadResults, extraParams);
+                             }
+                             grid.CF_saveRecsFunc = function (recsToSend, saveChangesHandler, extraParams) {
+                                 {!$RemoteAction.Configero_Framework.saveRecs}(obj.CF_childObjType, fieldsLoaded[obj.CF_templateName], recsToSend, saveChangesHandler, extraParams);
+                             }
+
+                             var meth = grid.attachEvent('CF_onLoadComplete', function() {
+                                 if (postRedrawFunc) postRedrawFunc(obj, this);
+                                 grid.detachEvent(meth);
+                             });
+
+                             obj.CF_loadData();
+                         },
+                         toolbar: {
+                             items: tb,
+                             postInit: function(toolbar) {
+                                if (toolbarPostInit) toolbarPostInit(toolbar, objType, tv, obj);
+                             }
+                         }
+                     }
+                 });
+             }
+             obj.CF_onSelect = function() {
+                 if (!postInitComplete || obj.CF_processed || !obj.CF_gridLoaded()) return;
+
+                 var g = window[tv + '_relationship_grid'];
+                 if (!g) {
+                     var x = allChildRelationships[objType][onn.val()].relationships[ds.val()];
+                     obj.CF_childObjType = x['childSObjectAPIName'];
+                     obj.CF_childFieldType = x['fieldAPIName'];
+                     obj.CF_templateName = x['childSObjectAPIName'] + '.' + x['fieldAPIName'] + '__PG';
+                     CF_setGridParam(tv + '_relationship_grid', 'templateObjType', obj.CF_templateName);
+
+                    // make sure parent field is here
+                    var taf = {};
+                    taf[obj.CF_childFieldType] = {};
+                    CF_setGridParam(tv + '_relationship_grid', 'hiddenFields', taf);
+
+                     // not defined - need to create first
+                     CF_gridGetObjectMeta(obj.CF_childObjType, function(result) {
+                         handleObjectMetaResultsCommon(result, obj.CF_childObjType, obj.CF_templateName);
+
+                         // reselect the template based on the relationship unless the name already matches what we need
+                         var curTemplate = getTemplateById(obj.CF_childObjType, selectedTemplate[obj.CF_templateName]);
+                         if (!curTemplate || curTemplate.Name != obj.CF_templateName) {
+                             for (var i = 0; i < allTemplates[obj.CF_childObjType].length; i++) {
+                                 if (allTemplates[obj.CF_childObjType][i].Name == obj.CF_templateName) {
+                                     selectedTemplate[obj.CF_templateName] = allTemplates[obj.CF_childObjType][i].Id;
+                                     break;
+                                 }
+                             }
+                         }
+                         obj.CF_redrawGrid();
+                    });
+                 } else {
+                     obj.CF_loadData();
+                 }
+
+                 obj.CF_processed = true;
+             }
+             obj.CF_onunSelect = function() {
+                 if (!obj.CF_processed || !obj.CF_gridLoaded()) return;
+                 window[tv + '_relationship_grid'].CF_resetGrid();
+                 obj.CF_processed = false;
+             }
+             obj.CF_destroy = function() {
+                 obj.CF_destroyGrid();
+                 obj.attachObject($('<div />').text('').get(0));
+             }
+             obj.CF_destroyGrid = function() {
+                 var g = window[tv + '_relationship_grid'];
+                 if (g) {
+                     obj.CF_processed = false;
+                     g.CF_destroy();
+                     window[tv + '_relationship_grid'] = false;
+                     b.attachObject($('<div />').text('').get(0));
+                     b.detachToolbar();
+                 }
+             }
+
+             // select the default
+             if (defaultRelationshipObject) {
+                 for (var i = 0; i < allChildRelationships[objType].length; i++) {
+                     if (allChildRelationships[objType][i].name == defaultRelationshipObject) {
+                        onn.val(i).change();
+
+                        if (defaultRelationshipField) {
+                            for (var j = 0; j < allChildRelationships[objType][i].relationships.length; j++) {
+                                ds.val(j).change();
+                                break;
+                            }
+                        }
+                        
+                        break;
+                     }
+                 }
+             }
+             postInitComplete = true;
+        }
+      };
+}
+
+function handleObjectMetaResults(result) {
+    var objType = result.objectAPIName;
+    preprocessMetaResults(result);
+    handleObjectMetaResultsCommon(result, objType);
+    postProcessMetaResults(allFieldsByAPIName[objType], objType);
+}
+
+function handleObjectMetaResultsCommon(result, objType, templateGroup) {
+    if (!templateGroup) templateGroup = objType;
+    allFields[objType] = result.fields;
+    allChildRelationships[objType] = result.children;
+    allObjectProps[objType] = {feedEnabled: result.feedEnabled, hasRecordTypes: result.hasRecordTypes, keyPrefix: result.keyPrefix, isCreateable: result.isCreateable, isDeletable: result.isDeletable, isUpdateable: result.isUpdateable, supportsTasks: result.supportsTasks};
+    
+    allFieldsByAPIName[objType] = {};
+    for (var i = 0; i < allFields[objType].length; i++) {
+        allFieldsByAPIName[objType][allFields[objType][i].Name] = allFields[objType][i];
+    }
+    allTemplates[objType] = result.templates;
+    for (var i = 0; i < allTemplates[objType].length; i++) {
+        allTemplates[objType][i][CF_NAMESPACE_PREFIX + 'BulkEditTemplateFields__r'] = allTemplates[objType][i][CF_NAMESPACE_PREFIX + 'BulkEditTemplateFields__r']['records'];
+    }
+
+    var def = buildDefaultTemplate(allObjectProps[objType], allFieldsByAPIName[objType]);
+    var xar = {};
+    xar['Id'] = '';
+    xar['Name'] = 'System Default';
+    xar[CF_NAMESPACE_PREFIX + 'JustMyRecords__c'] = true;
+    xar['OwnerId'] = '';
+    xar[CF_NAMESPACE_PREFIX + 'Private__c'] = true;
+    xar[CF_NAMESPACE_PREFIX + 'BulkEditTemplateFields__r'] = def;
+    allTemplates[objType].unshift(xar);
+
+    // determine which template should be selected
+    selectedTemplate[templateGroup] = determineDefaultTemplateFromList(allTemplates[objType], templateGroup);
+}
+
+function containsRelationshipTo(objType, obj) {
+    for (var i = 0; i < allChildRelationships[objType].length; i++) {
+        if (allChildRelationships[objType][i].name == obj) return true;
+    }
+    return false;
+}
+
+/***** GLOBAL FILTERS ****/
+function CF_gridGlobalFilterPrompt(mygrid) {
+  var fdd = $('#CF_gridGlobalFilterDialog');
+  fdd.dialog('open');
+  fdd = fdd.get(0);
+  fdd.CF_grid = mygrid;
+  var filters = mygrid.CF_getFilters();
+  var txt = '';
+  if (filters['__globalfilter']) {
+    txt = filters['__globalfilter'].value;
+  }
+  $('#CF_gridGlobalFilter').val(txt);
+}
+function CF_gridGlobalFilterSubmit() {
+  var tx = $('#CF_gridGlobalFilter').val();
+  var fdd = $('#CF_gridGlobalFilterDialog');
+  fdd.dialog('close');
+  var mygrid = fdd.get(0).CF_grid;
+  var filters = mygrid.CF_getFilters();
+  filters['__globalfilter'] = {value: tx};
+  mygrid.CF_applyFilters(filters);
+}
+
+/***** HIDE/SHOW FIELD FUNCS **************/
+function initFieldsToLoadGrid() {
+    fieldsToSelPendingGrid = new dhtmlXGridObject('fieldSelPending');
+    fieldsToSelActiveGrid = new dhtmlXGridObject('fieldSelActive');
+    fieldsToSelPendingGrid.selMultiRows = true;
+    fieldsToSelActiveGrid.selMultiRows = true;
+    fieldsToSelPendingGrid.setSkin("dhx_skyblue");
+    fieldsToSelActiveGrid.setSkin("dhx_skyblue");
+    fieldsToSelPendingGrid.setImagePath("{!URLFOR($Resource.dhtmlxProAll, 'imgs/')}");
+    fieldsToSelActiveGrid.setImagePath("{!URLFOR($Resource.dhtmlxProAll, 'imgs/')}");
+    fieldsToSelPendingGrid.setHeader('Field,Summary,Split,Group');
+    fieldsToSelActiveGrid.setHeader('Field,Summary,Split,Group');
+    fieldsToSelPendingGrid.setInitWidths('180,0,0,0');
+    fieldsToSelActiveGrid.setInitWidths('200,120,60,60');
+    fieldsToSelPendingGrid.setColTypes('rotxt,ro,ro,ro');
+    fieldsToSelActiveGrid.setColTypes('rotxt,corotxt,ch,ch');
+    fieldsToSelActiveGrid.setColAlign('left,left,center,center');
+    fieldsToSelPendingGrid.setMultiLine(false);
+    fieldsToSelActiveGrid.setMultiLine(false);
+    fieldsToSelPendingGrid.attachHeader("#text_filter");
+    fieldsToSelPendingGrid.enableDragAndDrop(true);
+    fieldsToSelActiveGrid.enableDragAndDrop(true);
+    // clear out the filters since drag/drop with filters on doesn't work right - the item remains after the filter is cleared
+    fieldsToSelPendingGrid.attachEvent("onDrag", function(sId, tId, sObj, tObj, sInd, tInd){
+        if (tObj != sObj) {
+            this.CF_clearFilters();
+        }
+        return true;
+    });
+    fieldsToSelActiveGrid.attachEvent("onDrag", function(sId, tId, sObj, tObj, sInd, tInd){
+        if (tObj != sObj) {
+            fieldsToSelPendingGrid.CF_clearFilters();
+        }
+        return true;
+    });
+    fieldsToSelActiveGrid.attachEvent('onCheck', function(rid, cindex, state) {
+        if (state == true && cindex == 2) {
+            // go through each and set to false if rid <> this row
+            fieldsToSelActiveGrid.forEachRow(function(id) {
+                if (id == rid) return;
+                fieldsToSelActiveGrid.cells(id, cindex).setChecked(false);
+            });
+        }
+    });
+    fieldsToSelPendingGrid.init();
+    fieldsToSelActiveGrid.init();
+
+    var cb = fieldsToSelActiveGrid.getCombo(1);
+    cb.put('','');
+    cb.put('#stat_count','count');
+    cb.put('#stat_total','sum');
+    cb.put('#stat_min','min');
+    cb.put('#stat_max','max');
+    cb.put('#stat_average','average');
+}
+function hideShowFields(mygrid, objType) {
+  // display the list of fields for this object and check the ones already displayed
+  var fdd = $('#fieldsToDisplayDialog');
+  fdd.dialog('open');
+  fdd = fdd.get(0);
+  fdd.CF_grid = mygrid;
+  fdd.CF_objType = objType;
+
+  // hide/show group column
+  fieldsToSelActiveGrid.setColWidth(3, mygrid.CF_allowGroups ? 60 : 0);
+
+  fieldsToSelPendingGrid.clearAll();
+  fieldsToSelActiveGrid.clearAll();
+  fieldsToSelPendingGrid.CF_clearFilters();
+
+  fieldsToSelPendingGrid.startFastOperations();
+  fieldsToSelActiveGrid.startFastOperations();
+
+  var seen = {};
+  var fieldDef = mygrid.CF_fieldDef;
+  for (var i = 0; i < fieldDef.length; i++) {
+      if (!fieldDef[i]['field'] || !allFieldsByAPIName[objType][fieldDef[i]['field']] || fieldDef[i]['hidden']) continue;
+      fieldsToSelActiveGrid.addRow(fieldDef[i]['field'], [allFieldsByAPIName[objType][fieldDef[i]['field']].Label, fieldDef[i]['summary'] ? fieldDef[i]['summary'] : '', fieldDef[i]['split'], fieldDef[i]['group']]);
+      seen[fieldDef[i]['field']] = 1;
+  }
+
+  for (var i = 0; i < allFields[objType].length; i++) {
+    if (seen[allFields[objType][i].Name]) continue;
+    fieldsToSelPendingGrid.addRow(allFields[objType][i].Name, [allFieldsByAPIName[objType][allFields[objType][i].Name].Label]);
+  }
+
+  fieldsToSelPendingGrid.stopFastOperations();
+  fieldsToSelActiveGrid.stopFastOperations();
+}
+
+function getDependencyChain(allFieldsByAPIName, fld) {
+   var hasDep = [];
+   if (allFieldsByAPIName[fld].Controller) {
+       // this one has a controller - go up the chain until we find the root
+       var rt = fld;
+       while (allFieldsByAPIName[rt] && allFieldsByAPIName[rt].Controller) {
+           rt = allFieldsByAPIName[rt].Controller;
+       }
+       hasDep.push(rt);
+    } else {
+      // this doesn't depend on anything go through all and see if anything depends on this one
+      for (var af in allFieldsByAPIName) {
+        if (allFieldsByAPIName[af].Controller == fld) {
+          // something depends on this
+          hasDep.push(fld);
+          break;
+        }
+      }
+    }
+    for (var i = 0; i < hasDep.length; i++) {
+      // go through and queue up anything that depends on this one
+      for (var af in allFieldsByAPIName) {
+          if (allFieldsByAPIName[af].Controller == hasDep[i]) {
+              hasDep.push(af);
+          }
+      }   
+    }
+    return hasDep;
+}
+function applyHideShowFields() {
+  var fdd = $('#fieldsToDisplayDialog');
+  var fddO = fdd.get(0);
+  var mygrid = fddO.CF_grid;
+  var objType = fddO.CF_objType;
+  if (!preApplyHideShowFields(mygrid, objType)) return;
+
+  if (fieldsToSelActiveGrid.getRowsNum() == 0) {
+      alert('Please select at least 1 field to continue.');
+      return;
+  }
+
+  // start off with the current field Def
+  var newFieldDef = [];
+  var colList = {};
+  var fieldDef = mygrid.CF_fieldDef;
+  for (var i = 0; i < fieldDef.length; i++) {
+    if (fieldDef[i].dynamicFieldIndex == undefined || fieldDef[i].hidden) continue;
+    var xar = {};
+    xar[CF_NAMESPACE_PREFIX + 'Width__c'] = mygrid.getColWidth(i);
+    xar['Name'] = fieldDef[i].field;
+    xar[CF_NAMESPACE_PREFIX + 'SummaryType__c'] = fieldDef[i].summary;
+    xar[CF_NAMESPACE_PREFIX + 'SplitAt__c'] = fieldDef[i].split;
+    xar[CF_NAMESPACE_PREFIX + 'Group__c'] = fieldDef[i].group;
+    colList[fieldDef[i].field] = xar;
+  }
+
+  chosenFields = {};
+
+  fieldsToSelActiveGrid.forEachRowA(function(id) {
+      var summaryType = fieldsToSelActiveGrid.cells(id, 1).getValue();
+      var splitAt = fieldsToSelActiveGrid.cells(id, 2).isChecked();
+      var group = fieldsToSelActiveGrid.cells(id, 3).isChecked();
+      chosenFields[id] = 1;
+      if (colList[id]) {
+          // already exists - update the summary type and split
+          colList[id][CF_NAMESPACE_PREFIX + 'SummaryType__c'] = summaryType;
+          colList[id][CF_NAMESPACE_PREFIX + 'SplitAt__c'] = splitAt;
+          colList[id][CF_NAMESPACE_PREFIX + 'Group__c'] = group;
+          newFieldDef.push(colList[id]);
+      } else {
+          var xar = {};
+          xar[CF_NAMESPACE_PREFIX + 'Width__c'] = DEFAULT_COLUMN_WIDTH;
+          xar[CF_NAMESPACE_PREFIX + 'SummaryType__c'] = summaryType;
+          xar[CF_NAMESPACE_PREFIX + 'SplitAt__c'] = splitAt;
+          xar[CF_NAMESPACE_PREFIX + 'Group__c'] = group;
+          xar['Name'] = id;
+          
+          newFieldDef.push(xar);
+      }
+  });
+
+  // if has record type - make sure it's picked
+  if (allObjectProps[objType]['hasRecordTypes'] && !chosenFields['RecordTypeId']) {
+      alert('Record Type ID must be chosen.');
+      return;
+  }
+
+  for (var i = 0; i < newFieldDef.length; i++) {
+    if (newFieldDef[i][CF_NAMESPACE_PREFIX + 'Group__c'] && newFieldDef[i][CF_NAMESPACE_PREFIX + 'SummaryType__c'] != '') {
+        alert('A field cannot be flagged as Group and have a Summary defined.');
+        return;
+    }
+  }
+  for (var fld in chosenFields) {
+      // if any field is dependent on another, make sure the entire chain is selected for display
+      if (allFieldsByAPIName[objType][fld].Controller) {
+        // has a controller - make sure it's chosen
+        var controller = allFieldsByAPIName[objType][fld].Controller;
+        if (!chosenFields[controller]) {
+            alert('\'' + allFieldsByAPIName[objType][fld].Label + '\' depends on \'' + allFieldsByAPIName[objType][controller].Label + '\'.  So \'' + allFieldsByAPIName[objType][controller].Label + '\' must be chosen.');
+            return;
+        }
+      }
+
+      /*var hasDep = getDependencyChain(allFieldsByAPIName[objType], fld);
+      for (var i = 0; i < hasDep.length; i++) {
+          if (!chosenFields[hasDep[i]]) {
+              alert(allFieldsByAPIName[objType][hasDep[i]].Label + ' must be chosen.');
+              return;
+          }
+      }*/
+  }
+
+  fdd.dialog('close');
+
+  // re-run the search with this new field list
+  loadPreviousResults[mygrid.CF_var] = true;
+  postApplyHideShowFields(mygrid, objType, newFieldDef);
+}
+function preApplyHideShowFields(mygrid, objType) {
+  return true;
+}
+function postApplyHideShowFields(mygrid, objType, newFieldDef) {
+  beginBulkSearch(objType, newFieldDef);
+}
+
+/***** TEMPLATE FUNCS **************/
+function saveTemplateToUserOwnedTemplate(mygrid, objName) {
+    var templateObjType = CF_getGridParam(mygrid.CF_var, 'templateObjType');
+    if (!templateObjType) templateObjType = objName;
+
+    var sel = getTemplateById(objName, selectedTemplate[templateObjType]);
+    if (!sel || sel.OwnerId != '{!$User.Id}') return;
+
+    // save to same template
+    saveAsTemplateSubmitPost(mygrid, objName, templateObjType, sel.Id, sel.Name, sel);
+}
+function saveTemplate(mygrid, objName) {
+    var templateObjType = CF_getGridParam(mygrid.CF_var, 'templateObjType');
+    if (!templateObjType) templateObjType = objName;
+
+    var templateName = CF_getGridParam(mygrid.CF_var, 'templateSaveName');
+    if (!templateName) templateName = templateObjType;
+
+    // make it the default for me
+    var template = getTemplateById(objName, selectedTemplate[templateObjType]);
+    var idd = template ? template.Id : '';
+
+    var params = {};
+    params[CF_NAMESPACE_PREFIX + 'Default__c'] = true;
+    params[CF_NAMESPACE_PREFIX + 'Private__c'] = true;
+    if (idd != '') {
+        // if I'm the owner, keep my private settings - if I'm not the owner or this doesn't have the same name as what I want to save it as
+        //, then clear out the ID so a new one can be created
+        if (template.OwnerId != '{!$User.Id}') idd = '';
+        else {
+            if (template[CF_NAMESPACE_PREFIX + 'Private__c']) params[CF_NAMESPACE_PREFIX + 'Private__c'] = true;
+            if (template.Name != templateName) idd = '';
+        }
+    }
+    saveAsTemplateSubmitPost(mygrid, objName, templateObjType, idd, templateName, params);
+}
+
+function saveAsTemplate(mygrid, objType, func) {
+    $('#saveTemplateDefault').attr('checked', false);
+    $('#saveTemplatePrivate').attr('checked', true);
+    $('#saveTemplateNew').show().val('');
+    var ts = $('#saveTemplateSel');
+    ts.children().remove().end().append($('<option />').attr('value', '').text('New Template'));
+
+    for (var i = 0; i < allTemplates[objType].length; i++) {
+         if (allTemplates[objType][i].Name == 'System Default') continue;
+         if (allTemplates[objType][i].OwnerId != '{!$User.Id}') continue;
+         ts.append($('<option />').attr('value', allTemplates[objType][i].Id).text(allTemplates[objType][i].Name));
+    }
+    ts.val('');
+    var dlg = $('#templateSaveDialog');
+    dlg.attr('grid_cf_var', mygrid.CF_var);
+    dlg.attr('grid_obj_name', objType);
+    dlg.data('func', func);
+    dlg.dialog('open');
+}
+function saveAsTemplateSubmit() {
+    var dlg = $('#templateSaveDialog');
+
+    var mygrid = window[dlg.attr('grid_cf_var')];
+    var objName = dlg.attr('grid_obj_name');
+    var func = dlg.data('func');
+
+    var templateObjType = CF_getGridParam(mygrid.CF_var, 'templateObjType');
+    if (!templateObjType) templateObjType = objName;
+
+    var s = $('#saveTemplateSel').val();
+    var n = $('#saveTemplateNew').val();
+
+    if (s == '' && n == '') {
+        alert('Please specify a template to continue.');
+        return;
+    }
+    var sendData = {};
+    //if ($('#onlyMineSel').is(':checked')) sendData[CF_NAMESPACE_PREFIX + 'JustMyRecords__c'] = true;
+    if ($('#saveTemplateDefault').is(':checked')) sendData[CF_NAMESPACE_PREFIX + 'Default__c'] = true;
+    if ($('#saveTemplatePrivate').is(':checked')) sendData[CF_NAMESPACE_PREFIX + 'Private__c'] = true;
+
+    saveAsTemplateSubmitPost(mygrid, objName, templateObjType, s, n, sendData, function(rec) {
+        dlg.dialog('close');
+        if (func) func(rec);
+    });
+}
+
+function saveAsTemplateSubmitPost(mygrid, objType, templateGroup, templateId, templateName, sendData, func) {
+    if (!sendData) sendData = {};
+    var sendFields = [];
+    var fieldDef = mygrid.CF_fieldDef;
+    for (var i = 0; i < fieldDef.length; i++) {
+        if (!fieldDef[i]['field'] || fieldDef[i]['hidden']) continue;
+        if (allFieldsByAPIName[objType][fieldDef[i]['field']]) {
+            // this one is valid
+            var d = {};
+            d['Name'] = fieldDef[i]['field'];
+            d[CF_NAMESPACE_PREFIX + 'Width__c'] = mygrid.getColWidth(i);
+            d[CF_NAMESPACE_PREFIX + 'FieldOrder__c'] = i;
+            d[CF_NAMESPACE_PREFIX + 'SummaryType__c'] = fieldDef[i]['summary'];
+            if (fieldDef[i]['split']) d[CF_NAMESPACE_PREFIX + 'SplitAt__c'] = true;
+            if (fieldDef[i]['group']) d[CF_NAMESPACE_PREFIX + 'Group__c'] = true;
+            sendFields.push(d);
+        }
+    }
+
+    if (templateId && templateId != '') sendData['Id'] = templateId;
+    else sendData['Name'] = templateName;
+
+    CF_beginProgress('Saving Template');
+    {!$RemoteAction.Configero_GridApp.saveTemplate}(CF_NAMESPACE_PREFIX, objType, sendData, sendFields, function(result, event) {
+        CF_endProgress();
+        if (event.status) {
+            var rec = false;
+            if (templateId && templateId != '') {
+                rec = getTemplateById(objType, templateId);
+            } else {
+                // creating a new one - add this new template to the list
+                templateId = result;
+                rec = {Id: templateId, OwnerId: '{!$User.Id}', Name: templateName};
+                allTemplates[objType].push(rec);
+            }
+
+            rec[CF_NAMESPACE_PREFIX + 'Default__c'] = sendData[CF_NAMESPACE_PREFIX + 'Default__c'];
+            rec[CF_NAMESPACE_PREFIX + 'Private__c'] = sendData[CF_NAMESPACE_PREFIX + 'Private__c'];
+            rec[CF_NAMESPACE_PREFIX + 'JustMyRecords__c'] = sendData[CF_NAMESPACE_PREFIX + 'JustMyRecords__c'];
+            rec[CF_NAMESPACE_PREFIX + 'BulkEditTemplateFields__r'] = sendFields;
+
+            selectedTemplate[templateGroup] = templateId;
+            if (func) func(rec);
+        } else {
+            alert(event.message);
+        }
+    }, {escape: false});
+}
+
+ $(function() {
+    $('#fieldsToDisplayDialog').dialog({width: 720, height: 400, modal: true, autoOpen: false, open: function(event, ui) { $(this).parents('.ui-dialog:first').find('.ui-resizable-handle').hide(); }, buttons: {'Apply': function() { applyHideShowFields(); }, 'Cancel': function() { $(this).dialog('close'); }  } });
+    $('#templateSaveDialog').dialog({width: 400, height: 250, modal: true, autoOpen: false, buttons: { 'Save': function() { saveAsTemplateSubmit(); }, 'Cancel': function() { $(this).dialog('close'); } } });
+    $('#CF_gridGlobalFilterDialog').dialog({width: 400, height: 150, modal: true, autoOpen: false, buttons: { 'Filter': function() { CF_gridGlobalFilterSubmit(); }, 'Cancel': function() { $(this).dialog('close'); } } });
+    initFieldsToLoadGrid();
+ });
+ </script>
+
+<div id="CF_gridGlobalFilterDialog" class="hidden" title="Global Filter">
+    <form onsubmit="CF_gridGlobalFilterSubmit(); return false">
+    <b>Filter grid on text: </b><input id="CF_gridGlobalFilter" type="text" size="40" />
+    </form>
+</div>
+
+<div id="fieldsToDisplayDialog" class="hidden" title="Hide / Show Fields">
+    <table width="100%">
+        <tr>
+            <td><b>Available</b></td>
+            <td><b>Active</b></td>
+        </tr>
+        <tr>
+            <td><div id="fieldSelPending" style="width: 200px; height: 265px"></div></td>
+            <td><div id="fieldSelActive" style="width: 480px; height: 265px"></div></td>
+        </tr>
+    </table>
+</div>
+
+<div id="templateSaveDialog" class="hidden" title="Save to Template">
+    <form>
+        <table border="0" cellspacing="2" cellpadding="2">
+            <tr>
+                <td><b>Default:</b></td>
+                <td><input type="checkbox" name="default" id="saveTemplateDefault" /></td>
+            </tr>
+            <tr>
+                <td><b>Private:</b></td>
+                <td><input type="checkbox" name="private" id="saveTemplatePrivate"  checked="checked"/></td>
+            </tr>
+            <tr>
+                <td valign="top"><b>Template:</b></td>
+                <td>
+                    <select onchange="$('#saveTemplateNew').css('display', $(this).val() == '' ? '' : 'none')" name="saveTemplateSel" id="saveTemplateSel"></select>
+                    <br />
+                    <input type="text" name="saveTemplateNew" id="saveTemplateNew" />
+                </td>
+            </tr>
+        </table>
+    </form>
+</div>
+
+</apex:component>

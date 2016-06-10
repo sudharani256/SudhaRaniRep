@@ -1,0 +1,17 @@
+<design:component>
+	<!-- Data Source Type list values "APEX PROVIDER", "REST SERVICE", "CLIENT" -->
+    <design:attribute name="dataSourceType" required="true" label="Data Source Type" description="Select the Data Source for the PickList." />
+    <design:attribute name="apexProviderClass" label="Custom APEX Provider Class (for Datasource APEX Provider)" description="Enter the name of the Custom APEX Data Provider Class. This Class must implement the IDOCMDataProvider interface." />
+    <design:attribute name="restEndPoint" label="REST End Point URL (for Datasource REST Service)" description="Enter the REST End Point URL including HTTPS" />
+    <design:attribute name="restEndPointMethod" label="GET or POST" description="Enter GET or POST" />
+    <!-- Attribute used to enable or disable the Component-->
+    <design:attribute name="enabled" label="Enter true or false" description="Enter true or false" />
+    <design:attribute name="theme" label="Theme" description="Select a Theme" />    
+
+    <design:attribute name="data" label="JSON Data String" description="Enter a JSON Data String to display the Chart. This value is typically set through client side code." />    
+
+    <design:attribute name="chartTitle" label="Chart Title" description="Enter the Title for Chart" />    
+    <design:attribute name="backgroundImageUrl" label="Background Image URL" description="Enter the Resource URL for an Image if it needs to be displayed as a background on the Chart" />        
+    <design:attribute name="xAxisLabels" label="Labels for XAxis" description="Enter the JSON Array containing the labels for X-Axis. This value is typically set programatically" />        
+	
+</design:component>

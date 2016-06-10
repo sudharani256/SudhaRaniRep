@@ -1,0 +1,476 @@
+<apex:page controller="PowerLoader.PowerLoaderMapping" extensions="PowerLoader.PowerLoader_Funcs" action="{!initPage}">
+<c:Configero_Framework />
+<style type="text/css">
+.apexp .bPageBlock.apexDefaultPageBlock .pbBody .pbSubheader { color: black; }
+.btn { width: 120px; }
+  .title{font-weight:bold; }
+  #objfields, #csvfields{min-width:200px;}
+  #matchedfield tr th{ padding:5px 10px; min-width:150px; border-bottom:1px #CCCCCC solid;}
+  #matchedfield tr td{ padding:5px 10px; min-width:150px; vertical-align:middle; border-bottom:1px #CCCCCC solid;}
+</style>
+<script>
+<apex:outputText rendered="{!!loadError}">
+
+var assignmentRule = '';
+var relationship_fields = {};
+var rf_tmp;
+<apex:repeat value="{!relationshipLookupMap}" var="gr">
+rf_tmp = [];
+<apex:repeat value="{!relationshipLookupMap[gr]}" var="gg">
+rf_tmp.push('{!JSENCODE(gg)}');
+</apex:repeat>
+relationship_fields['{!JSENCODE(gr)}'] = rf_tmp;
+</apex:repeat>
+
+var match_arr = [];
+var obj = $.getUrlParam('objName'); // used by the grid lookup
+var objs = $.getUrlParam('objs'); // used by the grid lookup
+var attachId = $.getUrlParam('attachId'); // used by the grid lookup
+var headerFields; 
+ $(function(){
+    $('.obj').text(obj);
+    CF_beginProgress('Loading header row');
+    {!$RemoteAction.PowerLoader_Funcs.getCSVHeaderMap}(attachId, function(headerRow, event) {
+    	CF_endProgress();
+    	if (event.status == true) {
+    		var encoding = headerRow['encoding'];
+    		headerRow = headerRow['content'];
+    		if (encoding == 'base64') headerRow = $.base64_decode(headerRow);
+		    if (headerRow == '') {
+		        alert('Unable to determine header row.  Please ensure that the CSV file format is valid.');
+		        goBack();
+		        return;
+		    }
+		    var seenFields = {};
+		       headerFields = $.CSVToArray(headerRow, ',', 1);
+		       if (headerFields && headerFields.length > 0) {
+		        headerFields = headerFields[0];
+		           for (var i = 0; i < headerFields.length; i++) {
+		            if (headerFields[i] == '' && i != (headerFields.length - 1)) {
+		                alert('Header column ' + (i + 1) + ' is empty.  Please correct and upload a new file.');
+		                goBack();
+		                return;
+		            }
+		            if (seenFields[headerFields[i].toUpperCase()]) {
+		                // already defined from before - same header showing up twice???
+		                alert('The field: ' + headerFields[i] + ' appears multiple times in the CSV file.  Please correct and upload a new file.');
+		                goBack();
+		                return;
+		            }
+		            seenFields[headerFields[i].toUpperCase()] = 1;
+		           }
+		           initfields();
+		       }
+    	} else {
+    		alert(event.message);
+    		goBack();
+    	}
+   	}, {escape: false});
+});
+
+function applyMapping(name) {
+    var loc = document.location.href;
+    var pos = loc.indexOf('?mn=');
+    if (pos < 0) pos = loc.indexOf('&mn=');
+    if (pos >= 0) {
+    	var pos2 = loc.indexOf('&', pos + 1);
+    	if (pos2 < 0) pos2 = loc.length;
+    	var loca = loc.substring(0, pos + 1);
+    	var locb = loc.substring(pos2, loc.length);
+    	if (loca.endsWith('&') && locb.length == 0) loca = loca.substring(0, loca.length - 1);
+    	if (locb.beginsWith('&')) locb = locb.substring(1);
+    	loc = loca + locb;
+    }
+    loc = loc + '&mn=' + escape(name);
+    document.location.href = loc;
+}
+
+function assignmentRuleFunc(params) {
+	$('#assignment_rule_name').text(params.text);
+	assignmentRule = params.id ? params.id : '';
+	$.CF_cancelLookup();
+}
+
+function initfields() {
+    var temp_objarr = [];
+    var temp_csvarr = [];
+
+    var allFields = [];
+    var allFieldsMap = {};
+    <apex:repeat value="{!objFields}" var="obj">
+    allFields.push('{!JSENCODE(obj)}');
+    allFieldsMap['{!JSENCODE(obj)}'.toUpperCase()] = '{!JSENCODE(obj)}';
+    </apex:repeat>
+
+    var csvToObjExistingMapping = {};
+    var relFieldExistingMapping = {};
+    var csvFieldsMapped = {};
+    var objFieldsMapped = {};
+    <apex:repeat value="{!existingFieldMapping}" var="m">
+    csvToObjExistingMapping['{!JSENCODE(m.PowerLoader__CSVField__c)}'.toUpperCase()] = '{!JSENCODE(m.PowerLoader__ObjField__c)}';
+    relFieldExistingMapping['{!JSENCODE(m.PowerLoader__CSVField__c)}'.toUpperCase()] = '{!JSENCODE(m.PowerLoader__RelField__c)}';
+    </apex:repeat>
+
+    if (!$.isEmptyObject(csvToObjExistingMapping)) {
+        // map based on existing mapping
+        for (var i = 0; i < headerFields.length; i++) {
+            if (csvToObjExistingMapping[headerFields[i].toUpperCase()]) {
+                // this one is mapped
+                csvFieldsMapped[headerFields[i].toUpperCase()] = 1;
+                objFieldsMapped[csvToObjExistingMapping[headerFields[i].toUpperCase()].toUpperCase()] = 1;
+                match_arr.push({csv: headerFields[i], obj: csvToObjExistingMapping[headerFields[i].toUpperCase()], rel_fld: relFieldExistingMapping[headerFields[i].toUpperCase()] });
+            }
+        }
+    } else {
+        // map based on an exact name match
+        for (var i = 0; i < headerFields.length; i++) {
+            if (allFieldsMap[headerFields[i].toUpperCase()]) {
+                csvFieldsMapped[headerFields[i].toUpperCase()] = 1;
+                objFieldsMapped[headerFields[i].toUpperCase()] = 1;
+                match_arr.push({csv: headerFields[i], obj: allFieldsMap[headerFields[i].toUpperCase()]});
+            }
+        }
+    }
+
+    // go through match_arr and create table entries
+    var sel = $('#csvfields');
+    for (var i = 0; i < headerFields.length; i++) {
+        if (csvFieldsMapped[headerFields[i].toUpperCase()]) continue;
+        sel.append($('<option />').val(headerFields[i]).text(headerFields[i]));
+    }
+    sel = $('#objfields');
+    for (var i = 0; i < allFields.length; i++) {
+        if (objFieldsMapped[allFields[i].toUpperCase()]) continue;
+        sel.append($('<option />').val(allFields[i]).text(allFields[i]));
+    }
+
+    for (var i = 0; i < match_arr.length; i++) {
+        addToMatch(match_arr[i]['csv'], match_arr[i]['obj'], match_arr[i]['rel_fld']);
+    }
+}
+function clearMap() {
+    $('.unmap_btn').click();
+}
+function autoMap() {
+    var csvFields = {};
+    var csv = $('#csvfields');
+    $('option', csv).each(function() {
+        csvFields[$(this).val().toUpperCase()] = $(this).val();
+    });
+    var obj = $('#objfields');
+    var objFields = {};
+    $('option', obj).each(function() {
+        objFields[$(this).val().toUpperCase()] = $(this).val();
+    });
+    for (var i in csvFields) {
+        if (objFields[i]) {
+            csv.val(csvFields[i]);
+            obj.val(objFields[i]);
+            mapFields();
+        }
+    }
+}
+function getExternalId() {
+    var ot = getOperationType();
+    if (ot == 'upsert' || ot == 'update' || ot == 'delete') return $("#externalId option:selected").val();
+    return null;
+}
+function getOperationType() {
+    return $("input[name='status']:checked").val();
+}
+function goNext() {
+     if(match_arr.length == 0){
+        alert('Please map at least 1 field to continue.');
+        return false;
+     }
+     var opt_type = getOperationType();
+     var ext_id = getExternalId();
+     if (!opt_type || opt_type == '') {
+        alert('Please select an operation type to continue.');
+        return false;
+     } else if (opt_type != 'insert') {
+        if (ext_id == '') {
+            alert('Please select a field to match on the object to continue.');
+            return false;
+        } else {
+            // make sure that external ID has been matched
+            var foundAt = -1;
+            for (var i = 0; i < match_arr.length; i++) {
+                if (match_arr[i]['obj'].toUpperCase() == ext_id.toUpperCase()) {
+                    foundAt = i;
+                    break;
+                }
+            }
+            if (foundAt == -1) {
+                alert('Please map the matching field \'' + ext_id + '\' to continue.');
+                return false;
+            }
+        }
+     } else {
+        // insert - prevent mapping on Id
+        for (var i = 0; i < match_arr.length; i++) {
+            if (match_arr[i]['obj'].toUpperCase() == 'ID') {
+                alert('The Id field cannot be mapped on an Insert operation.');
+                return false;
+            }
+        }
+     }
+     // make sure that all relationship fields have a rel_fld defined
+     for (var i = 0; i < match_arr.length; i++) {
+        if (relationship_fields[match_arr[i]['obj']] && (!match_arr[i]['rel_fld'] || match_arr[i]['rel_fld'] == '')) {
+            alert('Please select a field to match on the field: ' + match_arr[i]['obj']);
+            return false;
+        }
+     }
+     var cont = function() {
+        var w = 800;
+        if(match_arr.length > 6){
+            w += match_arr.length * 50;
+        }
+        if(w > ($(window).width()-50)){
+            w = $(window).width()-50;
+        }       
+        $('#CF_lookupDialog').dialog({modal: true, closeOnEscape: true, autoOpen: false,width: w, height: $(window).height() - 25});
+        $.CF_doLookup(CF_NAMESPACE_PREFIX + 'PowerLoaderGrid');
+     }
+     if ($('#save_mapping').is(':checked')) {
+        CF_beginProgress('Saving Mapping...');
+        {!$RemoteAction.PowerLoaderMapping.saveMappingWithDescription}($.getUrlParam('objName'), '{!JSENCODE(fileName)}', $('#mapping_name').val(), match_arr, function(result,event) {
+            if (event.status) {
+                cont();
+            } else {
+                alert(event.message);
+            }
+            CF_endProgress();
+        });
+     } else {
+        cont();
+     }
+}
+function updateStatus() {
+    var val = $('.status_sel:checked').val();
+    var x = $('#externalId');
+    if (val != 'insert') {
+        x.removeAttr('disabled');
+        x.show();
+        $('#match_on_field_na').hide();
+        if ($('option', x).length == 2) {
+            x.val($('option:last', x).val());
+            x.attr('disabled', true);
+        }
+    } else {
+       $('#match_on_field_na').show();
+       x.attr('disabled', true).val('');
+       x.hide();
+    }
+}
+function updateMatchExt(sel) {
+    var obj = $(sel).attr('objfield');
+    for (var i = 0; i < match_arr.length; i++) {
+        if (match_arr[i]['obj'] == obj) {
+            match_arr[i]['rel_fld'] = sel.value;
+            break;
+        }
+    }
+}
+function addToMatch(csv, obj, rel_fld) {
+    var o = $('<tr><td>' + $.escapeHTML(csv) + '</td><td>' + $.escapeHTML(obj) + '</td><td class="match_on"></td><td><input type="button" objfield="' + $.escapeHTML(obj) + '" csvfield="' + $.escapeHTML(csv) + '" name="del" value="Unmap" class="btn unmap_btn" onclick="deleteMap(this)" /></td></tr>');
+    if (relationship_fields[obj]) {
+        // display the fields to select
+        var sel = $('<select onchange="updateMatchExt(this)"></select>').attr('objfield', obj);
+        if (relationship_fields[obj].length > 1) {
+            sel.append($('<option />'));
+            for (var i = 0; i < relationship_fields[obj].length; i++) {
+                sel.append($('<option />').val(relationship_fields[obj][i]).text(relationship_fields[obj][i]));
+            }
+        } else {
+            sel.append($('<option />').val(relationship_fields[obj][0]).text(relationship_fields[obj][0]));
+            sel.attr('disabled', true);
+        }
+        $('.match_on', o).append(sel);
+        sel.val(rel_fld);
+        sel.trigger('change');
+    } else {
+        $('.match_on', o).text('N/A');
+    }
+    $('#matchedfield').append(o);
+    updateStatus();
+}
+function deleteMap(btn) {
+    btn = $(btn);
+    var tr = btn.closest('tr');
+    var csvField = btn.attr('csvfield');
+    var objField = btn.attr('objfield');
+    for (var i = 0; i < match_arr.length; i++) {
+        if (match_arr[i]['csv'] == csvField) {
+            $('#csvfields').prepend($('<option />').val(csvField).text(csvField));
+            $('#objfields').prepend($('<option />').val(objField).text(objField));
+            match_arr.splice(i, 1);
+            break;
+        }
+    }
+    tr.remove();
+}
+function mapFields() {
+    var csvField = $('#csvfields option:selected');
+    var objField = $('#objfields option:selected');
+    if (csvField.length == 0 || objField.length == 0){
+        alert('Please select a CSV field and a Salesforce field to map.');
+        return false;
+    }
+    var add = {csv: csvField.val(), obj: objField.val()};
+    match_arr.push(add);
+    addToMatch(add['csv'], add['obj']);
+    csvField.remove();
+    objField.remove();
+}
+function updateBatchSize(obj) {
+    var val = parseInt(obj.value);
+    if (isNaN(val)) val = 50;
+    if (val < 1 || val > 200) {
+    	alert('Batch size must be a number between 1 and 200.');
+    	val = 50;
+    }
+    obj.value = val;
+}
+function getInsertNullValues() {
+    return $('#insert_null_values').is(':checked');
+}
+function getBatchSize() {
+    return parseInt($('#batch_size').val());
+}
+function goBack() {
+    document.location.href = getInitUrl();
+}
+function getInitUrl() {
+	return CF_NAMESPACE_PREFIX + 'PowerLoader?objs=' + escape(objs) + '&obj='  + escape(obj);
+}
+</apex:outputText>
+</script>
+<apex:form >
+<apex:pageMessages />
+<apex:pageBlock rendered="{!!loadError}" title="Step 2 of 3: Field Mapping" helpTitle="Help" helpUrl="http://www.configero.com/products/dataloader/help">
+<apex:pageBlockButtons location="top">
+    <apex:commandButton value="Previous" onclick="goBack(); return false;" />
+    <apex:commandButton value="Clear Map" onclick="clearMap(); return false;" />
+    <apex:commandButton value="Auto Map" onclick="autoMap(); return false;" />
+    <apex:commandButton value="Next" onclick="goNext(); return false;" />
+</apex:pageBlockButtons>
+
+<apex:pageBlockSection columns="1"  title="Instructions" collapsible="true">
+<apex:outputPanel >
+  <p> Map fields from the CSV field list on the left with the Salesforce field list on the right and click "Map". </p>
+  <p> When finished, click "Next" to review the file data and upload to Salesforce.</p>
+</apex:outputPanel>
+</apex:pageBlockSection>
+
+<apex:pageBlockSection columns="1" title="Options / Available Fields" collapsible="true">
+<apex:outputPanel >
+    <table border="0"><tr>
+        <td valign="top">
+             <table border="0">
+             <tr>
+             <td class="title" nowrap="nowrap">Operation Type:</td>
+             <td nowrap="nowrap">
+            <input onclick="updateStatus()" type="radio" class="status_sel" checked="checked" value="insert" id="insert_status" name="status"/><span class="title"><label for="insert_status">Insert</label></span>
+            <input onclick="updateStatus()" type="radio" class="status_sel" value="update" id="update_status" name="status"/><span class="title"><label for="update_status">Update</label></span>
+            <input onclick="updateStatus()" type="radio" class="status_sel" value="upsert" id="upsert_status" name="status"/><span class="title"><label for="upsert_status">Upsert</label></span>
+            <input onclick="updateStatus()" type="radio" class="status_sel" value="delete" id="delete_status" name="status"/><span class="title"><label for="delete_status">Delete</label></span>
+            </td></tr>
+
+             <tr>
+                <td class="title" nowrap="nowrap">Match on Field:</td>
+                <td>
+                 <span id="match_on_field_na">N/A</span>
+                 <select disabled="disabled" id="externalId" style="display: none">
+                     <option value=""></option>
+                     <apex:repeat value="{!upsertFields}" var="uf">
+                        <option value="{!HTMLENCODE(uf)}"><apex:outputText value="{!uf}" /></option>
+                     </apex:repeat>
+                 </select>
+                </td>
+             </tr>
+             <tr>
+                <td class="title">Batch Size:</td>
+                <td><input type="text" size="3" id="batch_size" onblur="updateBatchSize(this)" value="50" /></td>
+             </tr>
+             <tr>
+                <td class="title">Apply Mapping:</td>
+                <td>
+                	<select name="apply_mapping" onchange="applyMapping(this.value)">
+                		<apex:repeat value="{!mappingNames}" var="mn">
+                		<option value="{!HTMLENCODE(mn)}">{!HTMLENCODE(mn)}</option>
+                		</apex:repeat>
+                	</select>
+                </td>
+             </tr>
+             <tr>
+                <td class="title">Save Mapping:</td>
+                <td>
+                	<input type="checkbox" checked="checked" id="save_mapping" />
+                	<input type="text" name="mapping_name" id="mapping_name" value="{!HTMLENCODE(currentMappingName)}" />
+                </td>
+             </tr>
+             <tr>
+                <td class="title">Insert Null Values:</td>
+                <td><input type="checkbox" checked="checked" id="insert_null_values" /></td>
+             </tr>
+             <tr>
+                <td class="title">Assignment Rule:</td>
+                <td><span id="assignment_rule_name"></span> <a href="javascript:void(0)" onclick="$.CF_doLookup(CF_NAMESPACE_PREFIX + 'Configero_LookupNameTemplate?obj=AssignmentRule&parobj=SobjectType&parval=' + escape(obj), assignmentRuleFunc)"><img src="/s.gif" class="lookupIcon" /></a></td>
+             </tr>
+
+              </table>
+          </td>
+          <td style="width: 15px;"></td>
+          <td style="width: 1px"><div style="height: 270px; width: 1px; border-right:1px solid black;" ></div></td>
+          <td style="width: 15px;"></td>
+          <td valign="top">
+        <table>
+            <tr>
+                <td>
+                    <table>
+                       <tr><td><span class="title">CSV Fields (Unmapped)</span></td></tr>
+                       <tr>
+                           <td><select name="select" size="15" id="csvfields">
+                               </select></td>
+                       </tr>  
+                    </table>
+                </td>
+                <td width="50"><input type="button" style="width: 80px; margin-top:90px;" value="Map"  class="btn" onclick="mapFields()" /></td>
+                <td>
+                    <table>
+                       <tr><td><span class="title"><span class="obj">Salesforce</span> Fields (Unmapped)</span></td></tr>
+                           <tr>
+                               <td><select name="select" size="15" id="objfields"></select></td>
+                           </tr>
+                    </table>        
+                </td>
+             </tr>
+        </table>
+            </td>
+        </tr></table>
+</apex:outputPanel>
+</apex:pageBlockSection>
+
+<apex:pageBlockSection title="Mapped Fields" columns="1" collapsible="true">
+<apex:outputPanel >
+        <table border="0" cellpadding="0" cellspacing="0">
+            <tr><td>
+                 <table border="0" cellpadding="0" cellspacing="0" id="matchedfield">
+                    <tr>
+                        <th>CSV Field</th>
+                        <th>Salesforce Field</th>
+                        <th class="match_on">Match on Field</th>
+                        <th align="center">Unmap</th>
+                    </tr>
+                 </table> 
+            </td><td valign="bottom"></td>
+            </tr>
+        </table>
+</apex:outputPanel>
+</apex:pageBlockSection>
+<c:Footer />
+</apex:pageBlock>
+</apex:form>     
+</apex:page>

@@ -1,0 +1,33 @@
+<apex:page showHeader="false" sidebar="false">
+<html><head>
+<title>ComboBox</title>
+<meta HTTP-EQUIV="PRAGMA" CONTENT="NO-CACHE" />
+<script src="{!URLFOR($Resource.domain_js)}"></script>
+<script type="text/javascript">
+function pickValue (index) {
+    top.window.opener.comboBoxPick('{!jsencode($CurrentPage.parameters.form)}', '{!jsencode($CurrentPage.parameters.field)}', 'cb_{!jsencode($CurrentPage.parameters.field)}'.replace(/:/g, '_'), index);
+}
+
+var comboBoxArray = top.window.opener['cb_{!jsencode($CurrentPage.parameters.field)}'.replace(/:/g, '_')];
+function getPickValue (index) {
+    var value = "";
+    if (comboBoxArray != null) {
+        var length = comboBoxArray.length;
+        if (length > 0 && index < length) {
+            value = comboBoxArray[index];
+        }
+    }
+    return escapeHTML(value);
+}
+function escapeHTML(a){a&&a.replace&&(a=a.replace(/&/g,"&amp;"),a=a.replace(/</g,"&lt;"),a=a.replace(/>/g,"&gt;"));return a}
+</script>
+</head>
+<body class="taskTab brandNoBgrImg subjectSelectionPopup">
+<div class="bPageTitle"><div class="ptBody secondaryPalette">
+<h1 class="pageDescription">Select a Subject below.</h1>
+</div></div>
+<div class="choicesBox tertiaryPalette brandSecondaryBrd">
+<ul><li class="listItem0" ><A HREF="javascript:pickValue(0);"><script type="text/javascript">document.write (getPickValue (0));</script></A></li><li class="listItem1" ><A HREF="javascript:pickValue(1);"><script type="text/javascript">document.write (getPickValue (1));</script></A></li><li class="listItem2" ><A HREF="javascript:pickValue(2);"><script type="text/javascript">document.write (getPickValue (2));</script></A></li><li class="listItem3" ><A HREF="javascript:pickValue(3);"><script type="text/javascript">document.write (getPickValue (3));</script></A></li><li class="listItem4" ><A HREF="javascript:pickValue(4);"><script type="text/javascript">document.write (getPickValue (4));</script></A></li><li class="lastBox">&nbsp;</li></ul><br />
+</div>
+</BODY></HTML>
+</apex:page>

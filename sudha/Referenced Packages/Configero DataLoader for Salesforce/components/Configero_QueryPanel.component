@@ -1,0 +1,14 @@
+<apex:component controller="PowerLoader.Configero_QueryPanelComponent" access="global">
+<apex:attribute name="query_panel_name" type="String" description="query panel name" assignTo="{!qp_name}" access="global" /> <!--  should be required=true, but can't if it's in a global component -->
+<apex:attribute name="query_panel_object" type="String" description="query panel object" assignTo="{!qp_object}" access="global" /> <!--  should be required=true, but can't if it's in a global component -->
+<apex:attribute name="query_panel_uid" type="String" description="query panel uid" assignTo="{!uid}" required="false" access="global" />
+
+<style>
+#{!uid}_container { padding: 5px; }
+</style>
+<div id="{!uid}_container"></div>
+<script>
+CF_QP_writeQueryPanelParameters('{!uid}', '{!JSENCODE(query_panel_json)}', '{!uid}_container');
+</script>
+
+</apex:component>

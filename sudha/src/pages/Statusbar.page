@@ -1,0 +1,7 @@
+<apex:page standardController="opportunity">
+
+    <c:StatusProgressBar labels="['Qualification','Closed Won','Closed Lost','Id. Decision Makers','Needs Analysis','Value Proposition','Perception Analysis',]"
+        shortlabels="['N','PC','AS','A','ACC','R','I']" 
+        selected="{!opportunity.stagename}"
+    />
+</apex:page>

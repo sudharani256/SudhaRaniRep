@@ -1,0 +1,28 @@
+<apex:page controller="disablebuttonwhileprocess">
+ <apex:form >
+  <apex:pageMessages id="errormsg" />
+  <apex:pageBlock mode="maindetail">
+
+    <apex:pageBlockButtons location="top">
+    
+     <apex:actionStatus id="SaveButtonStatus">
+      <apex:facet name="stop">
+       <apex:outputPanel >
+        <apex:commandButton action="{!DoSave}" value="Save" status="SaveButtonStatus" rerender="errormsg" />
+        <apex:commandButton action="{!DoCancel}" value="Cancel" immediate="true" />
+       </apex:outputPanel>
+      </apex:facet>
+      <apex:facet name="start">
+       <apex:outputPanel >
+        <apex:commandButton value="Saving..." disabled="true" />
+        <apex:commandButton value="Saving..." disabled="true" />
+       </apex:outputPanel>
+      </apex:facet>
+     </apex:actionStatus>
+     
+    </apex:pageBlockButtons>
+
+  </apex:pageBlock>
+
+ </apex:form>
+</apex:page>

@@ -1,0 +1,188 @@
+<apex:component controller="PowerLoader.Configero_DetailEditComponent" access="global">
+<style>
+textarea { width: 100%; }
+</style>
+<link href="{!URLFOR($Resource.lookup)}" rel="STYLESHEET" type="text/css" />
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js" type="text/javascript"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.js"></script>
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/themes/redmond/jquery-ui.css" />
+<script src="{!URLFOR($Resource.domain_js)}"></script>
+<script>
+// coped from configer base so we can have lookup functionality inside this
+$.CF_doLookup = function(vfUrl, selectFunc, initFunc) {
+   var ifr = $('<iframe style="width: 100%; height: 100%; border: 0px" />').attr('src', vfUrl);
+   ifr.get(0).selectFunc = selectFunc;
+   ifr.get(0).initFunc = initFunc;
+   $('#CF_lookupDialog').html(ifr).dialog('open');
+}
+$.CF_cancelLookup = function() {
+   $('#CF_lookupDialog').dialog('close');
+}
+
+function twistSection(s) {
+	s = $(s);
+	s.parent().parent().children().last().toggle();
+	if (s.hasClass('showListButton')) {
+		s.removeClass('showListButton');
+		s.addClass('hideListButton');
+	} else {
+		s.removeClass('hideListButton');
+		s.addClass('showListButton');
+	}
+}
+function getParent() {
+	if (parent && parent.$ && parent.$.getUrlParam) {
+		return parent;
+	} else {
+		return opener;
+	}
+}
+function getSelectFunc() {
+	var ret = false;
+	if (getParent() == parent) {
+		parent.$('iframe').each(function(iel, el) {
+		  if (el.contentWindow == window) {
+		      ret = el.selectFunc;
+		  }
+		});
+	} else {
+		ret = opener.CF_minigridEditselectFunc;
+	}
+	return ret;
+}
+var readOnlyLookups = [];
+var forceDisableEdit = [];
+var BLANK_ID = '000000000000000';
+var keys = {StandardUserLookup: 'User'};
+var CF_NAMESPACE_PREFIX = getParent().CF_NAMESPACE_PREFIX;
+var CF_HOSTED_URL = getParent().CF_HOSTED_URL;
+
+var selectFunc = getSelectFunc();
+
+<apex:repeat value="{!keyByObject}" var="key">
+    keys['{!JSENCODE(keyByObject[key])}'] = '{!JSENCODE(key)}';
+</apex:repeat>
+
+function cancelLookupEdit(nm) {
+	if (getParent() == parent) {
+		parent.$.cancelLookupEdit(nm);
+	} else {
+		window.close();
+	}
+}
+
+function pageSaved(idd) {
+    if (selectFunc) {
+        if (!selectFunc({idd: idd})) return;
+    } else {
+        // update the parent grid
+        getParent().CF_refetchAndMergeRecord('{!JSENCODE(grid)}', '{!JSENCODE(objType)}', idd);
+    }
+    cancelLookupEdit('lookupEditDialog');
+}
+function setupForceDisableEdit() {
+    for (var i = 0; i < forceDisableEdit.length; i++) {
+        var x = $('input.' + forceDisableEdit[i]);
+        if (x.length == 0) continue;
+
+        // get the first one and hide it and inject a span right after it
+        x = $(x.get(0));
+        x.hide().parent().find('.lookupIcon').hide();
+        x.after($('<span />').text(x.val()).attr('id', forceDisableEdit[i] + '_rospan'));
+    }
+}
+function setupReadOnlyLookups() {
+    for (var i = 0; i < readOnlyLookups.length; i++) {
+        var x = $('input.' + readOnlyLookups[i]);
+        if (x.length == 0) continue;
+
+        // get the first one and hide it and inject a span right after it
+        x = $(x.get(0));
+        x.hide();
+        var newSpan = $('<span />').text(x.val()).attr('id', readOnlyLookups[i] + '_rospan');
+        x.after(newSpan).change(function() {
+            var t = $(this);
+            // it might be an error as well - so get the non-error class
+            var tt = $.trim(t.attr('class').replace('error', ''));
+            $('#' + tt + '_rospan').text(t.val());
+        });
+    }
+}
+function getDefaultLookupUrl(pre) {
+    return CF_NAMESPACE_PREFIX + 'Configero_LookupNameTemplate?obj=' + escape(keys[pre]);
+}
+// override as needed
+function getLookupUrl(pre) {
+    return getDefaultLookupUrl(pre);
+}
+function doLookup(s) {
+    var d = document.getElementById(s + '_lktp').value;
+    var nmm = document.getElementById(s);
+    var nmt = '';
+    if (nmm != null) nmt = nmm.value;
+    var lookupFunc = getParent();
+    var cancelFunc = false;
+    if (lookupFunc == parent) {
+    	lookupFunc = parent.$.CF_doLookup;
+    	cancelFunc = parent.$.CF_cancelLookup;
+    } else {
+    	lookupFunc = $.CF_doLookup;
+    	cancelFunc = $.CF_cancelLookup;
+    }
+    lookupFunc(getLookupUrl(d) + '&CF_QP_Name=' + escape(nmt)	, function(params) {
+        var idd = params['id'];
+        if (idd == '') {
+            idd = BLANK_ID;
+            name = '';
+        }
+        document.getElementById(s + '_mod').value = 1;
+        document.getElementById(s + '_lkold').value = params['text'];
+        document.getElementById(s + '_lkid').value = idd;
+        document.getElementById(s).value = params['text'];
+        $(document.getElementById(s)).trigger('change');
+
+        // THIS SHOULD BE THE LAST THING IN THIS METHOD - do this after the trigger change since it resets it
+        document.getElementById(s + '_lkid').value = idd;
+
+         // trigger a fake method to do any other logic after the ID is updated
+        $(document.getElementById(s)).trigger('update');
+        parent.$.CF_cancelLookup();
+    });
+}
+
+var CF_openPopupFocus = openPopupFocus;
+openPopupFocus = function(a,b,c,d,e,f,g,k) {
+	if (a.indexOf('/widg/combobox.jsp') == 0) {
+		a = CF_NAMESPACE_PREFIX + 'Configero_ComboWidget' + a.substring(18);
+	}
+	return CF_openPopupFocus(a,b,c,d,e,f,g,k);
+}
+$(function() {
+    // get rid of hover for all lookups outputfields and update lookup buttons to point to custom lookup
+    $('#CF_lookupDialog').dialog({modal: true, closeOnEscape: true, autoOpen: false, width: 800, height: 550});
+
+    setupReadOnlyLookups();
+    setupForceDisableEdit();
+    $('a').each(function(index) {
+        var t = $(this);
+        var idd = t.attr('id');
+        if (idd == null || idd == '') return;
+        if (idd.length < 7) return;
+        
+        if (idd.substring(0, 6) == 'lookup') {
+            this.onblur = null;
+            this.onmouseout = null;
+            this.onfocus = null;
+            this.onmouseover = null;
+            this.target = '_blank';
+        } else if (idd.indexOf('lkwgt') == idd.length - 5) {
+            var s = idd.substring(0, idd.lastIndexOf('_'));
+            this.href = 'javascript:void(0)';
+            t.click(function() { doLookup(s); });
+        }
+    })
+});
+</script>
+
+<div class="hidden" id="CF_lookupDialog"></div>
+</apex:component>

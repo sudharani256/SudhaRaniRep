@@ -1,0 +1,7 @@
+<apex:page controller="NoofViews" showheader="false" sidebar="false">
+  <apex:form >
+      <apex:pageblock >
+          You are visitor number : {!visitorNumber}
+      </apex:pageblock>
+  </apex:form>
+</apex:page>

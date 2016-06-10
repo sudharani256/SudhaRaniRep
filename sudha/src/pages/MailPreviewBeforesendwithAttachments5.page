@@ -1,0 +1,22 @@
+<apex:page controller="MailPreviewBeforesendwithAttachments5" sidebar="false">
+<apex:form style="width: 70%; margin-left: 15%;">
+      <apex:pageMessages ></apex:pageMessages>
+       
+      <apex:actionRegion >
+      <apex:pageBlock title="Email" id="tem">
+       <apex:selectList size="1" multiselect="false" value="{!templateId}">
+       <apex:selectOptions value="{!EmailTemps}" ></apex:selectOptions>
+       </apex:selectList>                <apex:commandButton value="Label_On_Button_for_further_process_after_template_choosing" action="{!ChooseEmailTemplate}" reRender="tem"/>
+         <apex:commandButton value="Send Mail" action="{!sendMail}"/>
+    
+ </apex:pageBlock>
+ </apex:actionRegion>
+               <apex:pageBlock title="Email" id="email">  
+          Attachment::<apex:inputFile value="{!att.body}" fileName="{!att.name}"/>
+          <apex:commandButton title="Upload" action="{!upload}" value="Upload"/><BR/>
+          <apex:repeat value="{!attList}" var="att">
+              {!att.Name}<br/>
+          </apex:repeat>
+            </apex:pageBlock>
+</apex:form>
+</apex:page>

@@ -1,0 +1,732 @@
+<apex:component access="global" controller="PowerLoader.Configero_QueryPanelComponent">
+<style>
+/*.CF_qp_panel { width: 100%; }*/
+.CF_qp_panel { padding: 5px; }
+.CF_qp_parameters > div { float: left; margin-right: 5px; }
+.CF_qp_numeric_input { width: 50px; }
+.CF_qp_label { float: left; font-weight: bold; margin-right: 5px; }
+.CF_qp_input_container { float: left; }
+/*.CF_qp_panel .input_buttons { width: 50px; margin-left: 150px; }*/
+.CF_qp_multi_input_container, .CF_qp_label, .CF_qp_lookup_container { white-space: nowrap; }
+.hidden { display: none; }
+</style>
+
+<script>
+// query panel stuff
+// whenever a change occurs, if the value is the same as before, ignore
+// whenever a change does occur, let the change happen and then go through all client behaviors for EACH input (and loop through things that impact it)...if something explicitly updates the visibility, value, or enabled, then use it...if value updated, trigger change again
+function CF_QP_submitHandler(btn) {
+	var o = $(btn);
+	var pp = o.closest('[uid]');
+	var uid = pp.attr('uid');
+	if (!CF_QP_validateForm(uid)) return false;
+
+	var submitFunc = window[uid + '_submitHandler'];
+	if (submitFunc) submitFunc(CF_QP_serialize(uid));
+	return true;
+}
+function CF_QP_isValidPanel(uid) {
+	return window[uid + '_id'] !== false;
+}
+function CF_QP_getQPLabelText(uid, qpId) {
+	var lbl = $('.CF_qp_label', $('#' + uid + '_' + qpId));
+	if (lbl.length > 0) return lbl.text();
+	return $('#CF_qp_label_uid_' + uid + '_' + qpId).text();
+}
+function CF_QP_validateForm(uid) {
+	// if not a valid form, return false
+	if (!CF_QP_isValidPanel(uid)) return false;
+
+	var state = window[uid + '_state'];
+	var params = window[uid + '_parameters'];
+
+	// make sure all required fields are filled out
+	for (var i = 0; i < params.length; i++) {
+		if (params[i][CF_NAMESPACE_PREFIX + 'IsRequired__c']) {
+			if (state[params[i].Id].value == undefined) {
+				alert('Please specify a value for: ' + CF_QP_getQPLabelText(uid, params[i].Id));
+				return false;
+			}
+		}
+		if (params[i][CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Numeric' && state[params[i].Id].value != undefined) {
+			// make sure it's a number
+			if (isNaN(parseFloat(state[params[i].Id].value))) {
+				alert('Value must be numeric for: ' + CF_QP_getQPLabelText(uid, params[i].Id));
+				return false;
+			}
+		}
+	}
+	return true;
+}
+// resets all inputs back to their defaults
+function CF_QP_resetInputs(uid) {
+	var params = window[uid + '_parameters'];
+	var state = window[uid + '_state'];
+	for (var i = 0; i < params.length; i++) {
+		CF_QP_setValue(uid, params[i].Id, state[params[i].Id].defaultValue);
+	}
+}
+function CF_QP_applyTemplate(uid, templateId) {
+	var params = window[uid + '_parameters'];
+	var templates = window[uid + '_templates'];
+	var tmpl = {};
+	if (templateId != '') {
+		for (var i = 0; i < templates.length; i++) {
+			if (templates[i].Id == templateId) {
+				if (templates[i][CF_NAMESPACE_PREFIX + 'QueryPanelTemplateFields__r']) {
+					var fff = templates[i][CF_NAMESPACE_PREFIX + 'QueryPanelTemplateFields__r'];
+					if (fff && fff.length > 0) {
+						for (var j = 0; j < fff.length; j++) {
+							tmpl[fff[j].Name] = fff[j][CF_NAMESPACE_PREFIX + 'Value__c'];
+						}
+					}
+				}
+				break;
+			}
+		}
+	}
+	for (var i = 0; i < params.length; i++) {
+		var newVal = tmpl[params[i][CF_NAMESPACE_PREFIX + 'Tag__c']];
+		CF_QP_setValue(uid, params[i].Id, newVal);
+	}
+}
+function CF_QP_saveAsTemplate(uid, name, func) {
+    $('#CF_QP_saveTemplatePrivate').attr('checked', true);
+    $('#CF_QP_saveTemplateNew').show().val('');
+    var ts = $('#CF_QP_saveTemplateSel');
+    ts.children().remove().end().append($('<option />').attr('value', '').text('New Template'));
+
+	var templates = window[uid + '_templates'];
+
+    for (var i = 0; i < templates.length; i++) {
+         if (templates[i].OwnerId != '{!$User.Id}') continue;
+         ts.append($('<option />').attr('value', templates[i].Id).text(templates[i].Name));
+    }
+    ts.val('');
+    var dlg = $('#CF_QP_templateSaveDialog');
+    dlg.attr('qp_uid', uid);
+    dlg.attr('qp_name', name);
+    dlg.data('func', func);
+    dlg.dialog('open');
+}
+function CF_QP_saveAsTemplateSubmit() {
+	var dlg = $('#CF_QP_templateSaveDialog');
+
+	var uid = dlg.attr('qp_uid');
+	var qp_name = dlg.attr('qp_name');
+	var func = dlg.data('func');
+
+    var s = $('#CF_QP_saveTemplateSel').val();
+    var n = $('#CF_QP_saveTemplateNew').val();
+
+    if (s == '' && n == '') {
+        alert('Please specify a template to continue.');
+        return;
+    }
+    var sendData = {};
+    if ($('#CF_QP_saveTemplatePrivate').is(':checked')) sendData[CF_NAMESPACE_PREFIX + 'Private__c'] = true;
+
+    CF_QP_saveAsTemplateSubmitPost(uid, qp_name, s, n, sendData, function(rec) {
+        dlg.dialog('close');
+        if (func) func(rec);
+    });
+}
+function CF_QP_saveAsTemplateSubmitPost(uid, qp_name, templateId, templateName, sendData, func) {
+    if (!sendData) sendData = {};
+    var sendFields = [];
+
+	var state = window[uid + '_state'];
+	var params = window[uid + '_parameters'];
+	var templates = window[uid + '_templates']
+
+	// make sure all required fields are filled out
+	for (var i = 0; i < params.length; i++) {
+		if (state[params[i].Id].value != undefined && params[i][CF_NAMESPACE_PREFIX + 'Tag__c'] != '') {
+			var d = {};
+			d['Name'] = params[i][CF_NAMESPACE_PREFIX + 'Tag__c'];
+			d[CF_NAMESPACE_PREFIX + 'Value__c'] = state[params[i].Id].value;
+
+			if (params[i][CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Lookup') {
+				var ct = $('.CF_qp_lookup_text', $('#' + uid + '_' + params[i].Id));
+				if (ct.length > 0) {
+					d[CF_NAMESPACE_PREFIX + 'Value__c'] += ';' + ct.text();
+				}
+			}
+			sendFields.push(d);
+		}
+	}
+
+    if (templateId && templateId != '') sendData['Id'] = templateId;
+    else sendData['Name'] = templateName;
+    
+    sendData[CF_NAMESPACE_PREFIX + 'Query_Panel_Name__c'] = qp_name;
+
+    CF_beginProgress('Saving Template');
+    {!$RemoteAction.Configero_QueryPanelComponent.saveTemplate}(CF_NAMESPACE_PREFIX, sendData, sendFields, function(result, event) {
+        CF_endProgress();
+        if (event.status) {
+            var rec = false;
+            if (templateId && templateId != '') {
+            	for (var i = 0; i < templates.length; i++) {
+            		if (templates[i].Id == templateId) {
+            			rec = templates[i];
+            			break;
+            		}
+            	}
+            } else {
+                // creating a new one - add this new template to the list
+                templateId = result;
+                rec = {Id: templateId, OwnerId: '{!$User.Id}', Name: templateName};
+                templates.push(rec);
+            }
+
+            rec[CF_NAMESPACE_PREFIX + 'Private__c'] = sendData[CF_NAMESPACE_PREFIX + 'Private__c'];
+            rec[CF_NAMESPACE_PREFIX + 'QueryPanelTemplateFields__r'] = sendFields;
+            if (func) func(rec);
+        } else {
+            alert(event.message);
+        }
+    }, {escape: false});
+}
+
+
+function CF_QP_serialize(uid) {
+	// go through all the input fields and execute blur event on them (IE doesn't do this automatically if the focus has it and you click somewhere else)
+	$('input[type=text]:visible', $('.CF_qp_parameters_uid_' + uid)).blur();
+
+	var vals = {};
+	var state = window[uid + '_state'];
+	var params = window[uid + '_parameters'];
+
+	// make sure all required fields are filled out
+	for (var i = 0; i < params.length; i++) {
+		if (state[params[i].Id].value != undefined) {
+			if (params[i][CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Date' || params[i][CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Date/Time') {
+				vals[params[i].Id] = $.parseDateTime(state[params[i].Id].value);
+			} else {
+				vals[params[i].Id] = state[params[i].Id].value;
+			}
+		}
+	}
+
+	// get the ones from the URL that need to go as a global filter
+	var v = $.getUrlParam('CF_QP_' + uid + '_filterField');
+	var l = $.getUrlParam('CF_QP_' + uid + '_filterValue');
+	if (v == null) {
+		v = $.getUrlParam('CF_QP_filterField');
+		l = $.getUrlParam('CF_QP_filterValue');
+	}
+	if (v != null) {
+		if (!$.isArray(v)) {
+			v = [v];
+			l = [l];
+		}
+		for (var i = 0; i < v.length; i++) {
+			vals['__' + v[i]] = l[i];
+		}
+	}
+
+	return vals;
+}
+function CF_QP_lookupHandler(uid, name, objType) {
+    var url = CF_NAMESPACE_PREFIX + 'Configero_LookupNameTemplate?obj=' + objType;
+
+	var inp = $('input[name=' + name + ']', $('.CF_qp_parameters_uid_' + uid));
+	var lbl = $('.CF_qp_lookup_text', $(inp.closest('.CF_qp_lookup_container')));
+    $.CF_doLookup(url, function(params) {
+     	inp.val(params['id']);
+     	lbl.text(params['text']);
+     	inp.trigger('change');
+       $.CF_cancelLookup();
+    });
+    return false;
+}
+function CF_QP_keyPressHandler(inp, evt) {
+	evt = window.event ? event : evt;
+	var code = evt.charCode ? evt.charCode : evt.keyCode;
+	if (code == 13) {
+		CF_QP_submitHandler(inp);
+	}
+}
+function CF_QP_changeHandler(obj) {
+	var o = $(obj);
+	var pp = o.closest('.CF_qp_parameter');
+	var uid = pp.attr('uid');
+	var state = window[uid + '_state'];
+	var idd = pp.attr('pid');
+	var currentVal = CF_QP_getValue(uid, idd);
+	var prevVal = state[idd].value;
+
+	if (currentVal == prevVal) return; // nothing changed
+
+	// save value for next comparison
+	state[idd].value = currentVal;
+
+	// execute behaviors - delay so everything else can run before it
+	var delayFunc = function() { CF_QP_executeBehaviors(uid, idd, currentVal); };
+	window.setTimeout(delayFunc, 1);
+}
+function CF_QP_runJSSnippet(_uid, _idd, _js_snippet, _relatedVal) {
+	// create new method and pass it uid, idd, current value
+	var _currVal = window[_uid + '_state'] && window[_uid + '_state'][_idd] ? window[_uid + '_state'][_idd].value : null;
+	var _container = $('#' + _uid + '_' + _idd);
+	var _params = window[_uid + '_parameters_by_id'][_idd];
+	var _func;
+	eval('_func = function() {' + _js_snippet + '}');
+	return _func();
+}
+function CF_QP_behaviorCriteriaMet(uid, idd, params, behavior, currVal) {
+	var ret = undefined;
+	var arrayMatch = params[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Checkbox' || params[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Multi Picklist';
+	if (behavior[CF_NAMESPACE_PREFIX + 'Criteria__c'] == 'Any') {
+		ret = true;
+	} else if (behavior[CF_NAMESPACE_PREFIX + 'Criteria__c'] == 'JS Snippet') {
+		ret = CF_QP_runJSSnippet(uid, idd, behavior[CF_NAMESPACE_PREFIX + 'Criteria_Value__c'], currVal);
+	} else if (behavior[CF_NAMESPACE_PREFIX + 'Criteria__c'] == 'Equals') {
+		if (arrayMatch) {
+			var bc = CF_QP_splitVal(behavior[CF_NAMESPACE_PREFIX + 'Criteria_Value__c']);
+			if (bc == undefined || currVal == undefined) {
+				ret = bc == currVal;
+			} else {
+				bc.sort().join('\n');
+				ret = bc == currVal;
+			}
+		} else {
+			// also assume undefined is blank for equal comparison
+			ret = currVal == behavior[CF_NAMESPACE_PREFIX + 'Criteria_Value__c'] || (currVal == undefined && behavior[CF_NAMESPACE_PREFIX + 'Criteria_Value__c'] == '');
+		}
+	} else if (behavior[CF_NAMESPACE_PREFIX + 'Criteria__c'] == 'Contains') {
+		ret = false;
+		if (arrayMatch) {
+			var bc = CF_QP_splitVal(behavior[CF_NAMESPACE_PREFIX + 'Criteria_Value__c']);
+			if (bc != undefined && currVal != undefined) {
+				bc.sort();
+				var xc = CF_QP_splitVal(currVal);
+				for (var i = 0; i < bc.length; i++) {
+					if (xc.indexOf(bc[i]) != -1) {
+						ret = true;
+						break;
+					}
+				}
+			}
+		} else if (params[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Single Picklist') {
+			var bc = CF_QP_splitVal(behavior[CF_NAMESPACE_PREFIX + 'Criteria_Value__c']);
+			// see if any of the values are equal to val
+			if (bc != undefined && currVal != undefined) {
+				for (var i = 0; i < bc.length; i++) {
+					if (bc[i] == currVal) {
+						ret = true;
+						break;
+					}
+				}
+			}
+		} else {
+			ret = currVal != undefined && currVal.indexOf(behavior[CF_NAMESPACE_PREFIX + 'Criteria_Value__c']) != -1;
+		}
+	} else if (behavior[CF_NAMESPACE_PREFIX + 'Criteria__c'] == 'Begins With') {
+		// only applicable for non array matches
+		if (!arrayMatch) {
+			ret = currVal != undefined && currVal.beginsWith(behavior[CF_NAMESPACE_PREFIX + 'Criteria_Value__c']);
+		}
+	} else if (behavior[CF_NAMESPACE_PREFIX + 'Criteria__c'] == 'Ends With') {
+		// only applicable for non array matches
+		if (!arrayMatch) {
+			ret = currVal != undefined && currVal.endsWith(behavior[CF_NAMESPACE_PREFIX + 'Criteria_Value__c']);
+		}
+	}
+	if (ret == undefined) return false;
+	if (behavior[CF_NAMESPACE_PREFIX + 'Negate_Criteria__c']) ret = !ret;
+	return ret;
+}
+function CF_QP_attributeVote(uid, idd, attribute) {
+	var params = window[uid + '_parameters_by_id'];
+
+	// go through each parameter - each behavior
+	for (var i = 0; i < params.length; i++) {
+		var o_params = params[i];
+
+		// no point doing anything unless this is the object itself or we have a tag on the object we care about such that something may point to it
+		if (o_params[CF_NAMESPACE_PREFIX + 'Tag__c'] == '' && o_params.Id != idd) continue;
+
+		if (o_params[CF_NAMESPACE_PREFIX + 'Query_Parameter_Client_Behaviors__r'] && o_params[CF_NAMESPACE_PREFIX + 'Query_Parameter_Client_Behaviors__r'].done) {
+			var behaviors = o_params[CF_NAMESPACE_PREFIX + 'Query_Parameter_Client_Behaviors__r'].records;
+			if (behaviors && behaviors.length) {
+				for (var j = 0; i < behaviors.length; j++) {
+					var b = behaviors[i];
+					if (b[CF_NAMESPACE_PREFIX + 'Action__c'] != attribute) continue;
+
+					var tags_match = o_params[CF_NAMESPACE_PREFIX + 'Tag__c'] != '' && o_params[CF_NAMESPACE_PREFIX + 'Tag__c'] == b[CF_NAMESPACE_PREFIX + 'Apply_to_Tag__c'];
+
+					if (tags_match || (o_params.Id == idd && (b[CF_NAMESPACE_PREFIX + 'Apply_to_Tag__c'] == '' || !b[CF_NAMESPACE_PREFIX + 'Apply_to_Tag__c']))) {
+						// tags match OR we're looking at ourselves
+						if (CF_QP_behaviorCriteriaMet(uid, idd, o_params, b, currentVal)) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
+function CF_QP_executeBehaviors(uid, idd, currentVal) {
+	var params = window[uid + '_parameters_by_id'];
+	var o_params = params[idd];
+	var params_by_tag = window[uid + '_parameters_by_tag'];
+	var state = window[uid + '_state'];
+	if (o_params[CF_NAMESPACE_PREFIX + 'Query_Parameter_Client_Behaviors__r'] && o_params[CF_NAMESPACE_PREFIX + 'Query_Parameter_Client_Behaviors__r'].done) {
+		var behaviors = o_params[CF_NAMESPACE_PREFIX + 'Query_Parameter_Client_Behaviors__r'].records;
+		if (behaviors && behaviors.length) {
+			for (var i = 0; i < behaviors.length; i++) {
+				// TODO - take into account criteria
+				var b = behaviors[i];
+				if (!CF_QP_behaviorCriteriaMet(uid, idd, o_params, b, currentVal)) continue;
+
+				var act = b[CF_NAMESPACE_PREFIX + 'Action__c'];
+
+				if (act == 'Display Message') {
+					alert(b[CF_NAMESPACE_PREFIX + 'Action_Text__c']);
+					continue;
+				}
+
+				// all the rest make changes to the state
+				var target_params = (b[CF_NAMESPACE_PREFIX + 'Apply_to_Tag__c'] && b[CF_NAMESPACE_PREFIX + 'Apply_to_Tag__c'] != '') ? params_by_tag[b[CF_NAMESPACE_PREFIX + 'Apply_to_Tag__c']] : o_params;
+
+				// if target doesn't exist, skip
+				if (!target_params) continue;
+
+				if (act == 'Flag Required') {
+					target_params[CF_NAMESPACE_PREFIX + 'IsRequired__c'] = true;
+				} else if (act== 'Remove Required Flag') {
+					target_params[CF_NAMESPACE_PREFIX + 'IsRequired__c'] = false;
+				} else if (act == 'Set Value') {
+					if (b[CF_NAMESPACE_PREFIX + 'Set_Value_Type__c'] == 'Static') {
+						CF_QP_setValue(uid, target_params.Id, b[CF_NAMESPACE_PREFIX + 'Action_Text__c']);
+					} else if (b[CF_NAMESPACE_PREFIX + 'Set_Value_Type__c'] == 'JS Snippet') {
+						// pass in the current val of current field since it's value is what the JS function will be looking for
+						CF_QP_setValue(uid, target_params.Id, CF_QP_runJSSnippet(uid, target_params.Id, b[CF_NAMESPACE_PREFIX + 'Action_Text__c'], currentVal));
+					} else if (b[CF_NAMESPACE_PREFIX + 'Set_Value_Type__c'] == 'Empty') {
+						CF_QP_setValue(uid, target_params.Id, undefined);
+					} else if (b[CF_NAMESPACE_PREFIX + 'Set_Value_Type__c'] == 'Revert to Default') {
+						CF_QP_setValue(uid, target_params.Id, state[target_params.Id].defaultValue);
+					}
+				} else if (act == 'JS Snippet') {
+					CF_QP_runJSSnippet(uid, idd, b[CF_NAMESPACE_PREFIX + 'Action_Text__c']);
+				} else {
+					var ct = $('#' + uid + '_' + target_params.Id);
+					var cl = $('#CF_qp_label_uid_' + uid + '_' + target_params.Id);
+					if (act == 'Disable') {
+						// disable right away
+						$(':input', ct).attr('disabled', true);
+					} else if (act == 'Enable') {
+						// enable is based on a vote - if anything says disable, don't do it
+						if (!CF_QP_attributeVote(uid, idd, 'Disable')) {
+							$(':input', ct).removeAttr('disabled');
+						}
+					} else if (act == 'Hide') {
+						// hide right away
+						ct.hide();
+						cl.hide();
+					} else if (act == 'Show') {
+						// show is based on a vote - if anything says to hide it, keep it hidden
+						if (!CF_QP_attributeVote(uid, idd, 'Show')) {
+							ct.show();
+							cl.show();
+						}
+					}
+				}
+			}
+		}
+	}
+}
+function CF_QP_getValue(uid, idd) {
+	var ct = $('#' + uid + '_' + idd);
+	var params_by_id = window[uid + '_parameters_by_id'];
+	var o = params_by_id[idd];
+	if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Lookup' || o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Date' || o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Date/Time' || o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Text' || o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Numeric' || o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Single Picklist') {
+		var v = $(':input', ct).val();
+		return v == '' ? undefined : v;
+	} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Radio') {
+		var ch = $('input:checked', ct);
+		if (ch.length == 0) return undefined;
+		return ch[0].value;
+	} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Multi Picklist') {
+		var ret = [];
+		$('select option:selected', ct).each(function() {
+			ret.push(this.value);
+		});
+		ret.sort();
+		return ret.length == 0 ? undefined : ret.join('\n');
+	} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Checkbox') {
+		var ret = [];
+		$('input:checked', ct).each(function() {
+			ret.push(this.value);
+		});
+		ret.sort();
+		return ret.length == 0 ? undefined : ret.join('\n');
+	}
+}
+function CF_QP_splitVal(val) {
+	var ret = val == undefined || val == '' ? [] : val.replace(/\r/g, '').split('\n');
+	ret.sort();
+	return ret;
+}
+function CF_QP_setValue(uid, idd, val) {
+	var ct = $('#' + uid + '_' + idd);
+	var params_by_id = window[uid + '_parameters_by_id'];
+	var o = params_by_id[idd];
+	var objsToTrigger = [];
+	if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Lookup') {
+		val = val == undefined ? [] : val.split(';'); // id then text
+		$('.CF_qp_lookup_text', ct).text(val[1] ? val[1] : '');
+		$('input[type=hidden]', ct).val(val[0]).each(function() { objsToTrigger.push(this); });
+	} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Radio') {
+		// trigger it for all of them - we keep track of the prev value anyway
+		$(':input', ct).each(function() {
+			this.checked = this.value == val;
+		});
+		objsToTrigger.push($(':input', ct).first().get(0));
+	} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Text' || o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Numeric' || o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Date' || o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Date/Time') {
+		$('input[type=text]', ct).val(val).each(function() { objsToTrigger.push(this); });
+	} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Checkbox') {
+		var v = CF_QP_splitVal(val);
+		var x = {};
+		for (var i = 0; i < v.length; i++) {
+			x[v[i]] = true;
+		}
+		$(':input', ct).each(function() {
+			this.checked = x[this.value];
+		});
+		objsToTrigger.push($(':input', ct).first().get(0));
+	} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Single Picklist') {
+		$('select', ct).val(val).each(function() { objsToTrigger.push(this); });
+	} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Multi Picklist') {
+		var v = CF_QP_splitVal(val);
+		var x = {};
+		for (var i = 0; i < v.length; i++) {
+			x[v[i]] = true;
+		}
+		var sel = $('select', ct).get(0);
+		objsToTrigger.push(sel);
+		for (var i = 0; i < sel.options.length; i++) {
+			sel.options[i].selected = x[sel.options[i].value];
+		}
+	}
+	for (var i = 0; i < objsToTrigger.length; i++) {
+		CF_QP_changeHandler(objsToTrigger[i]);
+	}
+}
+function CF_QP_writeQueryPanelParameters(uid, panel_props, target_obj_id) {
+	target_obj_id = $('#' + target_obj_id);
+
+	window[uid + '_id'] = false;
+
+	if (panel_props == null || panel_props == '') {
+		return false;
+	}
+	eval('panel_props = ' + panel_props);
+	var params = eval(panel_props['params']);
+	var templates = eval(panel_props['templates']);
+	for (var i = 0; i < templates.length; i++) {
+		if (templates[i][CF_NAMESPACE_PREFIX + 'QueryPanelTemplateFields__r'] && templates[i][CF_NAMESPACE_PREFIX + 'QueryPanelTemplateFields__r'].records) {
+			templates[i][CF_NAMESPACE_PREFIX + 'QueryPanelTemplateFields__r'] = templates[i][CF_NAMESPACE_PREFIX + 'QueryPanelTemplateFields__r'].records;
+		}
+	}
+	var panel = eval('(' + panel_props['panel'] + ')');
+	var params_by_id = {};
+	var params_by_tag = {};
+	var options = eval('(' + panel_props['options'] + ')');
+	var state = {};
+
+	window[uid + '_id'] = panel.Id == undefined ? '000000000000000000' : panel.Id;
+	window[uid + '_parameters'] = params;
+	window[uid + '_templates'] = templates;
+	window[uid + '_parameters_by_id'] = params_by_id;
+	window[uid + '_parameters_by_tag'] = params_by_tag;
+	window[uid + '_submitHandler'] = false;
+
+	window[uid + '_options'] = options;
+	window[uid + '_state'] = state;
+
+	var gp = $('<div class="CF_qp_parameters" />').addClass('CF_qp_parameters_uid_' + uid).attr('uid', uid);
+	for (var i = 0; i < params.length; i++) {
+		var o = params[i];
+		if (o[CF_NAMESPACE_PREFIX + 'Tag__c'] == null) o[CF_NAMESPACE_PREFIX + 'Tag__c'] = '';
+
+		// for dynamically built query params, the Id won't be there but the Tag will be - use that for the Id - it will be unique
+		if (!o.Id) o.Id = o[CF_NAMESPACE_PREFIX + 'Tag__c'];
+
+	    params_by_id[o.Id] = o;
+		if (o[CF_NAMESPACE_PREFIX + 'Tag__c'] != '') params_by_tag[o[CF_NAMESPACE_PREFIX + 'Tag__c']] = o;
+
+		var op = options ? options[o.Id] : false;
+		if (o[CF_NAMESPACE_PREFIX + 'List_Source_Type__c'] == 'JS Snippet') {
+			op = CF_QP_runJSSnippet(uid, o.Id, o[CF_NAMESPACE_PREFIX + 'List_Source__c']);
+		}
+		if (!op) op = [];
+		var dd = $('<div class="CF_qp_parameter" />').addClass('CF_qp_parameter_uid_' + uid).addClass('CF_qp_parameter_uidtag_' + uid + '_' + o[CF_NAMESPACE_PREFIX + 'Tag__c']).attr('uid', uid).attr('id', uid + '_' + o.Id).attr('pid', o.Id).attr('tag', o[CF_NAMESPACE_PREFIX + 'Tag__c']);
+		var lbl_span = $('<span class="CF_qp_label" />').addClass('CF_qp_label_tag_' + o[CF_NAMESPACE_PREFIX + 'Tag__c']).attr('id', 'CF_qp_label_uid_' + uid + '_' + o.Id);
+		dd.append(lbl_span);
+		var input_span = $('<span class="CF_qp_input_container" />').addClass('CF_qp_input_container_tag_' + o[CF_NAMESPACE_PREFIX + 'Tag__c']);
+	
+		if (o[CF_NAMESPACE_PREFIX + 'IsHidden__c']) { dd.css('display', 'none'); lbl_span.css('display', 'none'); }
+		if (o[CF_NAMESPACE_PREFIX + 'Label__c'] && o[CF_NAMESPACE_PREFIX + 'Label__c'] != '') {
+			if (o[CF_NAMESPACE_PREFIX + 'Is_Label_HTML__c']) {
+				lbl_span.html(o[CF_NAMESPACE_PREFIX + 'Label__c']);
+			} else {
+				lbl_span.text(o[CF_NAMESPACE_PREFIX + 'Label__c']);
+			}
+		}
+
+		if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Lookup') {
+			input_span.append($('<div class="CF_qp_lookup_container"><span class="CF_qp_lookup_text" /><a href="javascript:void()" onclick="return !$(\'input\', $(this).closest(\'.CF_qp_lookup_container\')).attr(\'disabled\') && CF_QP_lookupHandler(\'' + uid + '\', \'' + o.Id + '\', \'' + o[CF_NAMESPACE_PREFIX + 'Object_API_Name__c'] + '\')"><img src="/s.gif" class="lookupIcon" /></a></div>').append($('<input type="hidden" />').attr('name', o.Id)));
+		} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Radio') {
+			var ct = $('<div class="CF_qp_multi_input_container" />');
+			for (var j = 0; j < op.length; j++) {
+				ct.append($('<div />').append($('<input type="radio" />').attr('name', o.Id).val(op[j].value)).append($('<span />').text(op[j].label)));
+			}
+			input_span.append(ct);
+		} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Text') {
+			input_span.append($('<input type="text" class="CF_qp_text_input" />').attr('name', o.Id));
+		} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Numeric') {
+			input_span.append($('<input type="text" class="CF_qp_numeric_input" />').attr('name', o.Id));	
+		} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Checkbox') {
+			var ct = $('<div class="CF_qp_multi_input_container" />');
+			if (op.length > 0) {
+				for (var j = 0; j < op.length; j++) {
+					ct.append($('<div />').append($('<input type="checkbox" />').val(op[j].value)).append($('<span />').text(op[j].label)));
+				}
+			} else {
+				// no text for the checkbox - just a blank checkbox
+				ct.append($('<div />').append($('<input type="checkbox" value="true" />')));
+			}
+			input_span.append(ct);
+		} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Date' || o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Date/Time') {
+			input_span.append($('<input type="text" size="10" maxlength="10" class="CF_qp_date_input" />').attr('name', o.Id));
+		} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Single Picklist') {
+			var sel = $('<select size="1"><option value="" /></select>').attr('name', o.Id);
+			for (var j = 0; j < op.length; j++) {
+				if (op[j].options) {
+					// this one's an optgroup
+					var og = $('<optgroup />').attr('label', op[j].label);
+					sel.append(og);
+					for (var k = 0; k < op[j].options.length; k++) {
+						og.append($('<option />').attr('value', op[j].options[k].value).text(op[j].options[k].label));
+					}
+				} else {
+					sel.append($('<option />').attr('value', op[j].value).text(op[j].label));
+				}
+			}
+			input_span.append(sel);
+		} else if (o[CF_NAMESPACE_PREFIX + 'Display_Type__c'] == 'Multi Picklist') {
+			var sel = $('<select size="3" multiple="multiple" />').attr('name', o.Id);
+			for (var j = 0; j < op.length; j++) {
+				sel.append($('<option />').attr('value', op[j].value).text(op[j].label));
+			}
+			input_span.append(sel);
+		}
+		if (o[CF_NAMESPACE_PREFIX + 'IsDisabled__c']) {
+			$(':input', input_span).attr('disabled', true);
+		}
+		dd.append(input_span);
+		gp.append(dd);
+	}
+	$('select', gp).attr('onChange', 'CF_QP_changeHandler(this);');
+	$('input[type=hidden]', gp).attr('onChange', 'CF_QP_changeHandler(this);');
+	$('input[type=text]', gp).attr('onBlur', 'this.value=$.trim(this.value);CF_QP_changeHandler(this);').attr('onKeyPress', 'return CF_QP_keyPressHandler(this, event);');
+	$('input[type=checkbox],input[type=radio]', gp).attr('onClick', 'CF_QP_changeHandler(this);');
+
+	var gp_c = $('<span />').append($('<div class="CF_qp_panel" />').attr('id', 'CF_qp_panel_uid_' + uid).attr('uid', uid).append('<div class="input_buttons"><input type="button" class="hidden btn" value="Search" onClick="CF_QP_submitHandler(this); return false" /></div>').append($('<div />').append(gp)));
+
+	target_obj_id.html(gp_c.html());
+
+	// if there's a layout, move things into the layout
+	var custom_layout = panel[CF_NAMESPACE_PREFIX + 'Custom_Layout__c'];
+	if (custom_layout != null && custom_layout != '') {
+		target_obj_id.append($('<div />').attr('id', uid + '_layout').html(custom_layout));
+
+		custom_layout = $('#' + uid + '_layout');
+		custom_layout.addClass('CF_qp_parameters_uid_' + uid).attr('uid', uid);
+		var ct = $('#CF_qp_panel_uid_' + uid);
+		$('[qp_tag]', custom_layout).each(function() {
+			var t = $(this);
+			t.append($('.CF_qp_parameter_uidtag_' + uid + '_' + t.attr('qp_tag'), ct));
+		});
+		$('[qp_label]', custom_layout).each(function() {
+			var t = $(this);
+			// the labels come from the custom tag since the parameter got moved in the previous call
+			t.append($('.CF_qp_parameter_uidtag_' + uid + '_' + t.attr('qp_label') + ' .CF_qp_label', custom_layout));
+		});
+		$('[qp_submit]', custom_layout).append($('.input_buttons', ct));
+	}
+	if (window[uid + '_id'] == '000000000000000000') {
+		target_obj_id.append('<div style="clear: both"></div><div style="padding-left: 5px"><b>NOTE:</b> A Query Panel does not exist for this object.  A dynamic query panel has been created instead.  To add/remove fields on the Query Panel for this object, visit the Query Panel section or click Help for more information.</div>');
+	}
+
+	$(function() {
+		// queue up the datepicker method and set up the onclose listener
+		$('.CF_qp_date_input', $('.CF_qp_parameters_uid_' + uid)).datepicker({dateFormat: $.getDateFormat().replace('yyyy', 'yy').toLowerCase(), onClose: function(dateText, inst) {
+			CF_QP_changeHandler(this);
+		}});
+
+		// keep track of the current state of everything
+		$('.CF_qp_parameters_uid_' + uid + ' .CF_qp_parameter').each(function() {
+			var t = $(this);
+			pid = t.attr('pid');
+			var fo = $(':input', t).first();
+			state[pid] = {visible: t.css('display') != 'none', enabled: !fo.attr('disabled'), value: '', value: undefined};
+		});
+		
+		// loop through all inputs - set the default value from the setup section OR the browser (browser overrides the default)
+		// trigger on change (or whatever change event) on all that were modified
+		for (var i = 0; i < params.length; i++) {
+			if (params[i][CF_NAMESPACE_PREFIX + 'Tag__c'] != '') {
+				// first look for something specific to this UID
+				var v = $.getUrlParam('CF_QP_' + uid + '_' + params[i][CF_NAMESPACE_PREFIX + 'Tag__c']);
+				// now look for something just by the tag
+				if (v == null) v = $.getUrlParam('CF_QP_' + params[i][CF_NAMESPACE_PREFIX + 'Tag__c']);
+				if (v != null) {
+					CF_QP_setValue(uid, params[i].Id, v);
+					state[params[i].Id].defaultValue = state[params[i].Id].value;
+					continue;
+				}
+			}
+			if (params[i][CF_NAMESPACE_PREFIX + 'Default_Value_Type__c'] != '') {
+				if (params[i][CF_NAMESPACE_PREFIX + 'Default_Value_Type__c'] == 'Static') {
+					// set the value based on the type of parameter
+					CF_QP_setValue(uid, params[i].Id, params[i][CF_NAMESPACE_PREFIX + 'Default_Value__c']);
+				} else if (params[i][CF_NAMESPACE_PREFIX + 'Default_Value_Type__c'] == 'JS Snippet') {
+					CF_QP_setValue(uid, params[i].Id, CF_QP_runJSSnippet(uid, params[i].Id, params[i][CF_NAMESPACE_PREFIX + 'Default_Value__c']));
+				}
+				state[params[i].Id].defaultValue = state[params[i].Id].value;
+			}
+		}
+	});
+	return true;
+}
+
+$(function() {
+	$('#CF_QP_templateSaveDialog').dialog({width: 400, height: 250, modal: true, autoOpen: false, buttons: { 'Save': function() { CF_QP_saveAsTemplateSubmit(); }, 'Cancel': function() { $(this).dialog('close'); } } });
+})
+</script>
+
+<div id="CF_QP_templateSaveDialog" class="hidden" title="Save to Template">
+    <form>
+        <table border="0" cellspacing="2" cellpadding="2">
+            <tr>
+                <td><b>Private:</b></td>
+                <td><input type="checkbox" name="private" id="CF_QP_saveTemplatePrivate"  checked="checked"/></td>
+            </tr>
+            <tr>
+                <td valign="top"><b>Template:</b></td>
+                <td>
+                    <select onchange="$('#CF_QP_saveTemplateNew').css('display', $(this).val() == '' ? '' : 'none')" name="CF_QP_saveTemplateSel" id="CF_QP_saveTemplateSel"></select>
+                    <br />
+                    <input type="text" name="CF_QP_saveTemplateNew" id="CF_QP_saveTemplateNew" />
+                </td>
+            </tr>
+        </table>
+    </form>
+</div>
+
+</apex:component>

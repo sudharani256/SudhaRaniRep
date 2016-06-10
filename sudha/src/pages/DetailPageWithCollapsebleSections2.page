@@ -1,0 +1,202 @@
+<apex:page tabstyle="Campaign" controller="DetailPageWithCollapsebleSections2"  showheader="true">
+<style>
+#table1,#table1t {
+    border: 1px solid yellow;
+}
+
+#col2,#col1,#col2t,#col1t{
+    background-color: pink;
+    color: yellow;
+}
+  </style>
+<script>
+        function switchMenu(obj,obj1,obj2) 
+        {
+        
+        //http://www.forcetree.com/2010/04/expand-collapse-pageblock-table-columns.html
+            var el = document.getElementById(obj);                                       
+            if ( el.style.display != 'none' ) {
+            el.style.display = 'none';
+            }
+            else {
+            el.style.display = '';
+            }
+            var e2 = document.getElementById(obj1);                                       
+            if ( e2.style.display != 'none' ) {
+            e2.style.display = 'none';
+            }
+            else {
+            e2.style.display = '';
+            }
+             var e3 = document.getElementById(obj2);                                       
+            if ( e2.style.display != 'none' ) {
+            e3.style.display = 'none';
+            }
+            else {
+            e3.style.display = '';
+            }
+
+        }
+</script>
+    <apex:pageblock >  
+    <!--***********************Campaign members(contact,lead)**************************!-->   
+    <apex:pageBlockSection collapsible="true" title="Members">
+    <apex:pageBlockSectionItem >
+     <apex:outputPanel >
+                  
+        <apex:pageblocktable value="{!OpportunitiesData}"  var="accdet">
+            <apex:column >
+                   <apex:facet name="header">                                        
+                        Action                                                                                                                                                            
+                    </apex:facet>
+                    <apex:outputpanel id="plusimage">
+                          <apex:image url="{!$Resource.Plus_Image}" onclick="switchMenu('{!$Component.inlinetablesec}','{!$Component.minusimage}','{!$Component.plusimage}')" title="Expand - Team Member's"/> 
+                    </apex:outputpanel>
+                    <apex:outputpanel id="minusimage" style="display:none;">
+                          <apex:image url="{!$Resource.Minus_image}" onclick="switchMenu('{!$Component.inlinetablesec}','{!$Component.plusimage}','{!$Component.minusimage}')" title="Collapse - Team Member's"/>
+                    </apex:outputpanel>
+                    <apex:outputpanel id="inlinetablesec" style="display:none;">
+                                                <apex:variable value="{!0}" var="rowNum"/>
+                                                <apex:repeat var="count" value="{!accdet.name}">
+                                                    <apex:variable var="rowNum" value="{!rowNum+1}"/>
+                                                </apex:repeat>
+                            <apex:outputText rendered="{!rowNum=0}">  Data  </apex:outputText>
+                             <br/>  
+                                    <apex:detail subject="{!accdet.Id}" relatedList="false" title="false"/>
+                                 
+                                     <!--   <apex:outputfield value="{!accdet.Id}"/>-->
+                            
+                   </apex:outputpanel>     
+            </apex:column>
+            <apex:column headervalue="Lead Name">
+                    <apex:outputtext value="{!accdet.name}"/>
+            </apex:column>
+            <apex:column headervalue="Status">
+                    <apex:outputtext value="{!accdet.StageName}"/>
+            </apex:column>
+        </apex:pageblocktable>
+                        </apex:outputPanel>
+      
+        </apex:pageBlockSectionItem>
+        <apex:pageBlockSectionItem >
+           <apex:outputPanel >
+                  
+        <apex:pageblocktable value="{!ContactsData}"  var="accdet">
+            <apex:column >
+                   <apex:facet name="header">                                        
+                         Action                                                                              
+                    </apex:facet>
+                    <apex:outputpanel id="plusimage">
+                          <apex:image url="{!$Resource.Plus_Image}" onclick="switchMenu('{!$Component.inlinetablesec}','{!$Component.minusimage}','{!$Component.plusimage}')" title="Expand - Team Member's"/> 
+                    </apex:outputpanel>
+                    <apex:outputpanel id="minusimage" style="display:none;">
+                          <apex:image url="{!$Resource.Minus_image}" onclick="switchMenu('{!$Component.inlinetablesec}','{!$Component.plusimage}','{!$Component.minusimage}')" title="Collapse - Team Member's"/>
+                    </apex:outputpanel>
+                    <apex:outputpanel id="inlinetablesec" style="display:none;">
+                                                <apex:variable value="{!0}" var="rowNum"/>
+                                                <apex:repeat var="count" value="{!accdet.name}">
+                                                    <apex:variable var="rowNum" value="{!rowNum+1}"/>
+                                                </apex:repeat>
+                            <apex:outputText rendered="{!rowNum=0}">  Data  </apex:outputText>
+                                        <apex:outputfield value="{!accdet.Id}"/>
+                            
+                   </apex:outputpanel>     
+            </apex:column>
+            <apex:column headervalue=" Name">
+                    <apex:outputtext value="{!accdet.name}"/>
+            </apex:column>
+            <apex:column headervalue="Phone Number">
+                    <apex:outputtext value="{!accdet.phone}"/>
+            </apex:column>
+        </apex:pageblocktable>
+                        </apex:outputPanel>
+       
+        </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+      
+      
+<!--*******************Campaign******************-->
+  <apex:pageBlockSection collapsible="true" title="Events and sponsors">
+    <apex:pageBlockSectionItem >
+     <apex:outputPanel >
+                  
+        <apex:pageblocktable value="{!CampainChilds}"  var="accdetls">
+        <apex:repeat value="{!accdetls.Sponsors__r}" var="accdet">
+      
+       
+            <apex:column headervalue="Account Name">
+                  <apex:facet name="header">                                        
+                         Team Members                                                                               
+                    </apex:facet>
+                    <apex:outputpanel id="plusimage1">
+                          <apex:image url="{!$Resource.Plus_Image}" onclick="switchMenu('{!$Component.inlinetablesec1}','{!$Component.minusimage}','{!$Component.plusimage}')" title="Expand - Team Member's"/> 
+                    </apex:outputpanel>
+                    <apex:outputtext value="{!accdet.name}"/>
+                       
+                    <apex:outputpanel id="minusimage1" style="display:none;">
+                          <apex:image url="{!$Resource.Minus_image}" onclick="switchMenu('{!$Component.inlinetablesec1}','{!$Component.plusimage}','{!$Component.minusimage}')" title="Collapse - Team Member's"/>
+                    </apex:outputpanel>
+                    <apex:outputpanel id="inlinetablesec1" style="display:none;">
+                                               
+                                                <apex:repeat var="count" value="{!accdet.name}">
+                                                    <apex:variable var="rowNum" value="{!rowNum+1}"/>
+                                                </apex:repeat>
+                            <apex:outputText rendered="{!rowNum=0}">  Data  </apex:outputText>
+                                    <br/>  
+                                    <apex:detail subject="{!accdet.Id}" relatedList="false" title="false"/>
+                                     <!--<apex:outputfield value="{!accdet.Id}"/> -->
+                                     
+                            
+                   </apex:outputpanel>  
+            </apex:column>
+            <apex:column headervalue="HierarchyNumberOfOpportunities">
+                    <apex:outputtext value="{!accdet.id}"/> 
+            </apex:column>
+            </apex:repeat>
+        </apex:pageblocktable>
+                        </apex:outputPanel>
+      
+        </apex:pageBlockSectionItem>
+        <apex:pageBlockSectionItem >
+     <apex:outputPanel >
+                  
+        <apex:pageblocktable value="{!CampainChilds}"  var="accdetls">
+        <apex:repeat value="{!accdetls.tasks}" var="accdet">
+      
+       
+            <apex:column headervalue="Account Name">
+                  <apex:facet name="header">                                        
+                         Team Members                                                                               
+                    </apex:facet>
+                    <apex:outputpanel id="plusimage1">
+                          <apex:image url="{!$Resource.Plus_Image}" onclick="switchMenu('{!$Component.inlinetablesec1}','{!$Component.minusimage}','{!$Component.plusimage}')" title="Expand - Team Member's"/> 
+                    </apex:outputpanel>
+                    <apex:outputtext value="{!accdet.subject}"/>
+                       
+                    <apex:outputpanel id="minusimage1" style="display:none;">
+                          <apex:image url="{!$Resource.Minus_image}" onclick="switchMenu('{!$Component.inlinetablesec1}','{!$Component.plusimage}','{!$Component.minusimage}')" title="Collapse - Team Member's"/>
+                    </apex:outputpanel>
+                    <apex:outputpanel id="inlinetablesec1" style="display:none;">
+                                               
+                                                <apex:repeat var="count" value="{!accdet.subject}">
+                                                    <apex:variable var="rowNum" value="{!rowNum+1}"/>
+                                                </apex:repeat>
+                            <apex:outputText rendered="{!rowNum=0}">  Data  </apex:outputText>
+                                    <br/>  
+                                    <apex:detail subject="{!accdet.Id}" relatedList="false" title="false"/>
+                                     <!--<apex:outputfield value="{!accdet.Id}"/> -->
+                                     
+                            
+                   </apex:outputpanel>  
+            </apex:column>
+            <apex:column headervalue="HierarchyNumberOfOpportunities">
+                    <apex:outputtext value="{!accdet.id}"/> 
+            </apex:column>
+            </apex:repeat>
+        </apex:pageblocktable>
+                        </apex:outputPanel>
+        </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+         
+    </apex:pageblock>
+</apex:page>

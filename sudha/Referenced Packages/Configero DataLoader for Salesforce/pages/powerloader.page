@@ -1,0 +1,62 @@
+<apex:page controller="PowerLoader.PowerLoader">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js" type="text/javascript"></script>
+<style>
+.btn { width: 120px; }
+.hiddenValClass { display: none; }
+</style>
+<script>
+$(function() {
+    var cv = $('.hiddenValClass').val();
+    if (cv == '') {
+	    cv = '{!JSENCODE(obj)}';
+    }
+    if (cv == null || cv == '') cv = '';
+    $('#object_sel_list').val(cv).change();
+});
+</script>
+
+   <apex:form enctype="multipart/form-data">
+   <apex:inputText value="{!val}" styleClass="hiddenValClass" />
+    <apex:pageMessages />
+    <apex:pageBlock title="Step 1 of 3: Select CSV file to load" helpTitle="Help" helpUrl="http://www.configero.com/products/dataloader/help">
+          <apex:pageBlockButtons location="top">
+                <apex:commandButton action="{!upload}" value="Next"  />
+          </apex:pageBlockButtons>
+
+          <apex:pageBlockSection columns="1" showHeader="false">
+
+           <apex:pageBlockSectionItem >
+               <apex:outputLabel >Object:</apex:outputLabel>
+               <apex:outputPanel layout="block" styleClass="requiredInput">
+                   <apex:outputPanel layout="block" styleClass="requiredBlock"/>
+                   <select onchange="$('.hiddenValClass').val(this.value)" id="object_sel_list">
+                     <apex:repeat value="{!Name}" var="nn">
+                        <apex:repeat value="{!nn}" var="n">
+                          <option value="{!HTMLENCODE(n)}">{!HTMLENCODE(n)}</option>
+                        </apex:repeat>
+                     </apex:repeat>
+                   </select>
+               </apex:outputPanel>
+           </apex:pageBlockSectionItem> 
+
+
+           <apex:pageBlockSectionItem >
+            <apex:outputLabel >File (Max Size 5mb):</apex:outputLabel>
+            <apex:inputFile size="80" value="{!attachment.body}" filename="{!attachment.name}" id="file"/>
+           </apex:pageBlockSectionItem>
+       
+           <apex:pageBlockSectionItem >
+            <apex:outputText value="" />
+            <apex:outputPanel ><i>Note - CSV file should be comma delimited and begin with a header row</i></apex:outputPanel>
+           </apex:pageBlockSectionItem>
+
+           <apex:pageBlockSectionItem >
+            <apex:outputText value="" />
+            <apex:outputPanel ><b>We're here to help!  Have a question or suggestion?  Click <a target="_blank" href="http://www.configero.com/company/support-form?00NC0000005Nt66=Configero Data Loader">here</a>.</b></apex:outputPanel>
+           </apex:pageBlockSectionItem>
+
+       </apex:pageBlockSection>
+    </apex:pageBlock>
+    <c:Footer />
+  </apex:form>
+</apex:page>

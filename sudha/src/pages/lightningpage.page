@@ -1,0 +1,51 @@
+<apex:page showHeader="false" standardStylesheets="false" sidebar="false" applyHtmlTag="false" applyBodyTag="false" docType="html-5.0">    
+
+<html xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">    
+
+<head>
+  <title>Salesforce Lightning Design System Trailhead Module</title>
+  <apex:stylesheet value="{!URLFOR($Resource.SLDS092, 'assets/styles/salesforce-lightning-design-system-vf.css')}" />
+</head>    
+
+<body> 
+  <div class="slds">
+  <!--basci tile--------------*****
+  <div class="slds-tile">
+  <p class="slds-tile__title slds-truncate"><a href="#">Salesforce UX</a></p>
+  <div class="slds-tile__detail slds-text-body--small">
+    <p class="slds-truncate">26 Members</p>
+  </div> 
+  
+</div> ----->
+<!---with Icons---->
+<div class="slds-media slds-tile">
+  <div class="slds-media__figure">
+    <svg aria-hidden="true" class="slds-icon slds-icon-standard-groups">
+      <use xlink:href="/resource/SLDS092/assets/icons/standard-sprite/svg/symbols.svg#groups"></use>
+    </svg>
+  </div>
+  <div class="slds-media__body">
+    <p class="slds-tile__title slds-truncate"><a href="#">Salesforce UX</a></p>
+    <div class="slds-tile__detail slds-text-body--small">
+      <p class="slds-truncate">26 Members</p>
+    </div>
+  </div>
+</div>
+<div class="slds-media slds-tile">
+  <div class="slds-media__figure">
+    <span class="slds-avatar slds-avatar--circle slds-avatar--small">
+      <img src="/resource/SLDS092/assets/images/avatar1.jpg" alt="" />
+    </span>
+  </div>
+  <div class="slds-media__body">
+    <p class="slds-tile__title slds-truncate"><a href="#">Lexee L. Jackson</a></p>
+    <ul class="slds-tile__detail slds-list--horizontal slds-has-dividers slds-text-body--small">
+      <li class="slds-truncate slds-list__item">VP, Marketing</li>
+      <li class="slds-truncate slds-list__item">Decision Maker</li>
+    </ul>
+  </div>
+</div>
+    </div>
+  </body>
+  </html>
+</apex:page>

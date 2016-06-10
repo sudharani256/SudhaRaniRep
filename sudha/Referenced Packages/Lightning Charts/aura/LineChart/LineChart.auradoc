@@ -1,0 +1,75 @@
+<aura:documentation>
+	<aura:description>
+        <b>Line Chart Component</b>
+        <ul>
+            <li>
+            <b>Rest Service</b>
+            <ul>
+        		<li>  A REST Service (Salesforce REST Service or External REST Service) can be configured as the Data Source. 
+                    	The REST Service should return the data as JSON Data in the format
+    			Data Format
+        		[{
+    				"name": "value 1",
+        			"data": [ datavalue 1, datavalue 2, datavalue 3, datavalue 4, datavalue 5]
+    				},{
+       				"name": "value 2",
+        			"data": [ datavalue 1, datavalue 2, datavalue 3, datavalue 4, datavalue 5]
+    				},{
+    				"name": "value 3",
+        			"data": [ datavalue 1, datavalue 2, datavalue 3, datavalue 4, datavalue 5]
+    				},{
+    				"name": "value 4",
+        			"data": [ datavalue 1, datavalue 2, datavalue 3, datavalue 4, datavalue 5]
+    			}]
+            	</li>
+             </ul></li>
+            <li>
+              <b>Custom APEX Data Provider</b>
+                  <ul>
+                    <li>To implement a Custom Data Provider you should implement the interface IDocMDataProvider</li>
+           			<li>Must implement the method getJsonData() which should return JSON Data String, similar
+                            	in format to the String shown for the REST Service above
+                    </li>
+                 </ul>
+             </li>
+            <li>
+             <b>Client</b>
+             	<ul>
+                 <li>In this case, it is assumed that the client will populate the JSON Data String as shown above (for RESTFUL Service) 
+                   in the attribute value "data" either from client side Javascript or defines the value in the markup for
+                   the Component.
+                 </li>
+                </ul>
+            </li>
+            <li>Styling can be customized based on pre-configured themes</li>
+        </ul>
+        <b>Attributes. </b>
+        <ul>
+            <li><b>dataSourceType</b> : This attribute accepts string value, used to indicate the data souce of the chart</li>
+            	<ul><li>Accepted Values: "APEX PROVIDER", "REST SERVICE", "CLIENT" </li></ul>
+            <li><b>apexProviderClass</b>: This attribute accpets string value, if DataSourceType is "Apex Provider", 
+                						This attribute has to be populated with classname </li>
+            <li>If DataSourceType is "Rest Service" the below attributes apply</li>
+            	<ul><li><b>restEndPoint</b>: This attribute is used to specify the endpoint Url</li>
+                    <li><b>restEndPointMethod</b>: This attribute is used to specify the HTTP method "GET" or "POST"</li>
+            		<li><b>accessToken</b>: This attribute is used to specify the token for oauth2 connection</li>
+            	</ul>
+            <li><b>data</b>: populate this attribute if dataSource is "Client" </li>
+            <li><b>enabled</b>: This attribute is used to enable or disable the component, accepts a boolean value </li>
+            <li><b>theme</b>: This attribute controls the look and feel of the component</li>
+            <li><b>System/internal attributes</b>: These attributes are not configurable by admins</li>
+            	<ul><li>docmId</li>
+            	<li>wrapperDivElement</li>
+            	<li>uiElement</li>
+            	<li>messageDivElement</li>
+            	</ul>
+            <li><b>Component Specific Attributes</b></li>
+            	<ul><li>chartTitle: Specifies the title of the chart</li>
+            	<li>xAxisLabels: Specifies x-axis labels</li>
+            	<li>backgroundImageUrl: Specifies the url for background image</li></ul>
+        </ul>
+    </aura:description>
+	<aura:example name="ExampleName" ref="exampleComponentName" label="Label">
+		Example Description
+	</aura:example>
+</aura:documentation>

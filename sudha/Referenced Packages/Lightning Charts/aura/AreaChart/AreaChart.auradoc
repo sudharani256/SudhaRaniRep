@@ -1,0 +1,81 @@
+<aura:documentation>
+    <aura:description>
+        <ul>
+            <li>
+                Enables a Data Source to be configured based on which information is pulled dynamically and displayed.
+                <ul>
+                    <li>Area Chart - Data Provided by CLIENT either design time or run time JSON object</li>
+                    <li>
+                        A REST Service (Salesforce REST Service or External REST Service) can be configured as the Data Source. 
+                        The REST Service should return the data as JSON Data in the format
+                        '[
+                        {
+                        "name": "Haiti",
+                        "data": "[-0.253, 0.362, -3.519, 1.799, 2.252, 3.343, 0.843, 2.877, -5.416, 5.590]"
+                        }, {
+                        "name": "World",
+                        "data": "[1.988, 2.733, 3.994, 3.464, 4.001, 3.939, 1.333, -2.245, 4.339, 2.727]"
+                        }, {
+                        "name": "India",
+                        "data": "[3.907, 7.943, 7.848, 9.284, 9.263, 9.801, 3.890, 8.238, 9.552, 6.855]"
+                        }
+                        ]'
+                    </li>
+                </ul>
+                <li>
+                    <b>Custom APEX Data Provider</b>
+                    <ul>
+                        <li>To implement a Custom Data Provider you should implement the interface IDocMDataProvider</li>
+                        <li>Must implement the method getJsonData() which should return JSON Data String, similar
+                            in format to the String shown for the REST Service above
+                        </li>
+                    </ul>
+                </li>
+                <li>
+                    <b>Client</b>
+                    <ul>
+                        <li>In this case, it is assumed that the client will populate the JSON Data String as shown above (for RESTFUL Service) 
+                            in the attribute value "data" either from client side Javascript or defines the value in the markup for
+                            the Component.
+                        </li>
+                    </ul>
+                </li>
+                <ul title = "">
+                    <b>Attribute Information and their default Value</b>
+                    <li><b>dataSourceType</b> : This attribute accepts string value, used to indicate the data souce of the chart</li>
+                    <ul>
+                        <li>Component Name = PlumQ:AreaChart</li>
+                        <li>name = "dataSourceType" type="String" default="CLIENT" access="global"</li>
+                        <li>name = "apexProviderClass" default= "" type="String" default="" access="global" </li>
+                    </ul>
+                    <li>If DataSourceType is "Rest Service" the below attributes apply</li>
+                    <ul>
+                        <li>name = "restEndPoint" type="String" default="" access="global"</li>
+                        <li>name="restEndPointMethod" type="String" default="POST" access="global" </li> 
+                        <li>name="accessToken" type="String" default="" access="global" </li> 
+                    </ul>
+                    
+                    
+                    <li>name="data" type="String" default="" access="global" </li> 
+                    <li>name="enabled" type="Boolean" default="true"  access="global" </li>    
+                    <li>name="theme" type="String" default="Classic"  access="global" </li> 
+                    <li><b>System/internal attributes</b>: These attributes are not configurable by admins</li>
+                    <ul>
+                        <li>name="docmId" type="String" </li>  
+                        <li>name="wrapperDivElement" default="dWrapper" type="String"</li>   
+                        <li>name="uiElement" default="dChart" type="String"</li>    
+                        <li>name="messageDivElement" default="dMessage" type="String" </li> 
+                    </ul>
+                    <li><b>Component Specific Attributes</b></li>
+                    <ul>
+                        <li>name="chartTitle" type="String" default="Title for Bar Chart...."  access="global" </li>    
+                        <li>name="backgroundImageUrl" type="String" default=""  access="global" </li>
+                        <li>name="xAxisLabels" type="String" default="[]"  access="global" </li>
+                    </ul>
+                </ul>
+            </li>
+        </ul>     
+    </aura:description>
+    <aura:example name="ChartDemo" ref="AreaChart" label="Area Chart - Data Provided by CLIENT either design time or run time JSON object">
+    </aura:example>
+</aura:documentation>

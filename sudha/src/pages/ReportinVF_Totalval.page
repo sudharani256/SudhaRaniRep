@@ -1,0 +1,135 @@
+<apex:page readOnly="true" controller="BubbleChartController" docType="html-5.0">
+
+<script src="https://www.google.com/jsapi"></script>
+<script>
+google.load("visualization", "1", {packages:["corechart"]});
+google.setOnLoadCallback(drawChart);
+
+var chart, dataTable, options;  
+var stages = { 
+    "Closed Lost" : 0,
+    "Prospecting": 1,
+    "Analysis": 2,
+    "Proposal": 3,
+    "Negotiation": 4,
+    "Closed Won": 5
+};
+
+function drawChart() {
+    chart = new google.visualization.BubbleChart(document.getElementById('chart_div'));
+    options = {
+        title: "Opportunity Bubble Chart",
+        height: 500,
+        width: 900,
+        colorAxis: { colors: ['yellow', 'red'] },
+        vAxis: { 
+            ticks: [
+                { v: -1, f: "" },
+                { v: 0, f: "Closed Lost - 0" },
+                { v: 1, f: "Prospecting - 1" },
+                { v: 2, f: "Analysis - 2" },
+                { v: 3, f: "Proposal - 3" },
+                { v: 4, f: "Negotiation - 4" },
+                { v: 5, f: "Closed Won - 5" }
+            ],
+            title: "Stage",
+            minValue: -1,
+            maxValue: 7
+        },
+        hAxis : {
+            ticks: [
+                { v: 0, f: "0%" },
+                { v: .10, f: "10%" },
+                { v: .30, f: "30%" },
+                { v: .60, f: "60%" },
+                { v: .75, f: "75%" },
+                { v: .95, f: "95%" },
+                { v: 1.00, f: "100%" }
+            ],
+            title: "Probability",
+            format: '###%',
+            minValue: -0.2,
+            maxValue: 1.2
+        }
+    };
+
+    // Construct the data table and define columns
+    createDataTable();
+
+    // Invoke remote action to get bubbles and draw chart
+    updateBubbles();
+}
+
+function createDataTable() {
+    dataTable = new google.visualization.DataTable();
+    dataTable.addColumn('string', 'ID');
+    dataTable.addColumn('number', 'Probability');
+    dataTable.addColumn('number', 'Stage');
+    dataTable.addColumn('number', 'Number of Opportunities');
+    dataTable.addColumn('number', 'Amount');
+}
+
+function updateBubbles() {
+
+    // Get the date strings (yyyy-MM-dd)
+    var fromDate = document.getElementById('fromDate').value;
+    var throughDate = document.getElementById('throughDate').value;
+
+    Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.BubbleChartController.getUpdatedBubbles}', 
+        fromDate,
+        throughDate, 
+        function(bubbles, event){
+            if (event.status) {
+                // success!
+                drawBubbles(bubbles);
+            } else if (event.type === 'exception') {
+                document.getElementById('errors').innerHTML = event.message;
+            } else {
+                document.getElementById('errors').innerHTML = event.message;
+            }
+        }, 
+        {escape: true}
+    );
+}
+
+function drawBubbles(bubbles) {
+    // if there are any existing bubbles, clear them
+    if (dataTable.getNumberOfRows() > 0) {
+        dataTable.removeRows(0, dataTable.getNumberOfRows());
+    }
+
+    var b;
+    for (var i = 0; i < bubbles.length; i++) {
+        b = bubbles[i];
+        dataTable.addRow([
+            b.rowCount.toString(),
+            b.probability/100,
+            stages[b.stage],
+            b.rowCount,
+            b.amount
+        ]);   
+    }
+
+    var pctF = new google.visualization.NumberFormat({pattern:'###%'});
+    pctF.format(dataTable, 1);
+    var currF = new google.visualization.NumberFormat({pattern:'$#,###'});
+    currF.format(dataTable, 4);
+
+    chart.draw(dataTable, options); 
+}
+</script>
+
+<div id="errors"></div>    
+<div id="chart_div"></div> 
+
+<h1>Close Date Filter</h1>
+<apex:form >
+    From: 
+    <input type="date" value="{!deafultFromDate}" id="fromDate" />
+    Through: 
+    <input type="date" value="{!defaultThroughDate}" id="throughDate" /><br/>
+    <button onclick="updateBubbles(); return false;">Update</button>
+</apex:form>
+
+</apex:page>

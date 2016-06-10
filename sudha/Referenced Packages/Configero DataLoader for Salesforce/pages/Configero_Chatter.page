@@ -1,0 +1,23 @@
+<apex:page showHeader="false" controller="PowerLoader.Configero_Chatter">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js" type="text/javascript"></script>
+<script src="{!URLFOR($Resource.domain_js)}"></script>
+
+<script>
+$(function() {
+	if (parent && parent.$.CF_doChatterFileSelect) {
+		// we need to use the parent chatter selector
+		if (window['chatter']) {
+			chatter.getPublisher().openSelectFilesToAttach = function(a, c) {
+				parent.$.CF_doChatterFileSelect(OverlayDialogElement.getDialog('chatterFindExistingContent'), chatter.getPublisher(), a, c);
+				return { display: function() {} };
+			}
+		}
+	}
+});
+</script>
+
+<apex:pageBlock >
+<apex:pageMessages />
+<chatter:feed entityId="{!idd}" rendered="{!idd != null}" />
+</apex:pageBlock>
+</apex:page>

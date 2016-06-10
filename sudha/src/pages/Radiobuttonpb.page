@@ -1,0 +1,28 @@
+<apex:page controller="Radiobuttonpb">  
+ <apex:form >
+ <apex:pageBlock >
+ <apex:pageblockTable value="{!emp_p}" var="e">
+ <apex:column headerValue="select">
+<input type="radio"   value="{!e.name}" styleClass="myChk" onchange="changeValue(this)"/>
+ 
+
+<script type="text/javascript">
+    function changeValue(radioButton) {
+        var chk = document.getElementsByClassName('myChk');
+
+        for (var i=0; i<chk.length; i++) {
+            if(radioButton.value == chk[i].value) {
+            console.log(radioButton.value + ' - ' + chk[i].value);
+                chk[i].checked = true;
+            } else {
+                chk[i].checked = false;
+            }
+        }
+    }
+</script>
+ </apex:column>
+ <apex:column headerValue="Name" value="{!e.name}"/>
+ </apex:pageblockTable>
+ </apex:pageBlock>
+ </apex:form>
+ </apex:page>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObjectTranslation xmlns="http://soap.sforce.com/2006/04/metadata">
+    <caseValues>
+        <plural>false</plural>
+        <value>Parent_Opportunity</value>
+    </caseValues>
+    <caseValues>
+        <plural>true</plural>
+        <value>Parent_Opportunities</value>
+    </caseValues>
+    <fields>
+        <label><!-- Total Amount Of Open Opportunities --></label>
+        <name>Total_Amount_Of_Open_Opportunities__c</name>
+    </fields>
+    <fields>
+        <label><!-- Total Amount of Won Opportunities --></label>
+        <name>Total_Amount_of_Won_Opportunities__c</name>
+    </fields>
+    <startsWith>Consonant</startsWith>
+</CustomObjectTranslation>

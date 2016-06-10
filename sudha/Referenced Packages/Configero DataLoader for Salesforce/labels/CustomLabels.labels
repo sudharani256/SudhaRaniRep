@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">
+    <labels>
+        <fullName>grid_filter_contains</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>grid_filter_contains</shortDescription>
+        <value>contains</value>
+    </labels>
+    <labels>
+        <fullName>grid_filter_endswith</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>grid_filter_endswith</shortDescription>
+        <value>ends with</value>
+    </labels>
+    <labels>
+        <fullName>grid_filter_equals</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>grid_filter_equals</shortDescription>
+        <value>equals</value>
+    </labels>
+    <labels>
+        <fullName>grid_filter_notcontains</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>grid_filter_notcontains</shortDescription>
+        <value>not contains</value>
+    </labels>
+    <labels>
+        <fullName>grid_filter_notequals</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>grid_filter_notequals</shortDescription>
+        <value>not equals</value>
+    </labels>
+    <labels>
+        <fullName>grid_filter_startswith</fullName>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>grid filter starts with</shortDescription>
+        <value>starts with</value>
+    </labels>
+</CustomLabels>

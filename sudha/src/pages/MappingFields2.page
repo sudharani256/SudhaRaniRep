@@ -1,0 +1,71 @@
+<apex:page controller="MappingFields2">
+<apex:pageBlock >
+    <apex:form >
+        <apex:actionFunction name="ObjectFileds" action="{!ObjectFields}"/>
+        
+        <apex:commandButton value="Show Table" action="{!ShowTable}"/>
+        <br/>
+        <apex:pageBlockSection id="pbs" >
+        <apex:outputPanel >
+       <div> Source object</div>
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Select Object"/>
+                <apex:selectList multiselect="false" size="1" value="{!SelectedObject}" >
+                    <apex:selectOption itemLabel="--None--" itemValue="--None--"/>
+                    <apex:selectoptions value="{!supportedObject}" />
+                    <apex:actionSupport event="onchange" reRender="pnl" action="{!ObjectFields}"/>
+                </apex:selectlist>
+                
+            </apex:pageBlockSectionItem>
+           
+        <apex:outputPanel id="pnl">
+            <apex:pageBlockSectionItem id="fildsc">
+                <apex:outputLabel value="Select Field"/>
+                <apex:selectList multiselect="true" size="5" value="{!SelectedFields}" >
+                    <apex:selectOption itemLabel="--None--" itemValue="--None--"/>
+                    <apex:selectoptions value="{!fieldLableAPI}" />
+                </apex:selectlist>
+                
+            </apex:pageBlockSectionItem> 
+             </apex:outputPanel>
+              </apex:outputPanel><br/>
+              
+            <apex:outputPanel >
+                 <div> Target Object</div>
+                   <apex:pageBlockSectionItem >
+                  
+                <apex:outputLabel value="Select Object"/>
+                <apex:selectList multiselect="false" size="1" value="{!SelectedObject2}"  >
+                    <apex:selectOption itemLabel="--None--" itemValue="--None--"/>
+                    <apex:selectoptions value="{!targetObject}" />
+                    <apex:actionSupport event="onchange" reRender="opnl" action="{!ObjectFields2}" />
+                </apex:selectlist>
+               
+            </apex:pageBlockSectionItem>
+            <apex:outputPanel id="opnl">
+            <apex:pageBlockSectionItem id="fildsc2">
+                <apex:outputLabel value="Select Field"/>
+                <apex:selectList multiselect="true" size="5" value="{!SelectedFields2}" >
+                    <apex:selectOption itemLabel="--None--" itemValue="--None--"/>
+                    <apex:selectoptions value="{!fieldLableAPI2}" />
+                </apex:selectlist>
+            </apex:pageBlockSectionItem>
+            </apex:outputPanel>
+            </apex:outputPanel>
+    
+            <apex:pageBlockTable rendered="{!IF(ObjectList.size > 0 , true , false)}" value="{!ObjectList}" var="rec">
+                <apex:column value="{!rec.Id}" rendered="{!IF(SelectedFields.size == 0 , true, false)}"/>
+                <apex:repeat value="{!SelectedFields}" var="FieldLable">
+                    <apex:column value="{!rec[FieldLable]}" rendered="{!IF(FieldLable != '--None--' , true, false)}"/>
+                </apex:repeat>
+            </apex:pageBlockTable>
+            
+            <apex:outputPanel rendered="{!IF(ObjectList.size < 1 , true , false)}">
+                <apex:pageMessage severity="ERROR" summary="No records to display"/>
+            </apex:outputPanel>
+            
+        </apex:pageBlockSection>
+        
+    </apex:form>
+</apex:pageBlock>
+</apex:page>

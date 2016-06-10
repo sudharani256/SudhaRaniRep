@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionOverrides>
+        <actionName>Accept</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>CancelEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Clone</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Delete</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Edit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Follow</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>List</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>New</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>SaveEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Tab</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>View</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <compactLayoutAssignment>SYSTEM</compactLayoutAssignment>
+    <deploymentStatus>Deployed</deploymentStatus>
+    <deprecated>false</deprecated>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableEnhancedLookup>false</enableEnhancedLookup>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>false</enableHistory>
+    <enableReports>false</enableReports>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <fields>
+        <fullName>Criteria_Value__c</fullName>
+        <deprecated>false</deprecated>
+        <externalId>false</externalId>
+        <label>Criteria Value</label>
+        <required>false</required>
+        <trackTrending>false</trackTrending>
+        <type>TextArea</type>
+    </fields>
+    <fields>
+        <fullName>Criteria__c</fullName>
+        <deprecated>false</deprecated>
+        <externalId>false</externalId>
+        <label>Criteria</label>
+        <picklist>
+            <picklistValues>
+                <fullName>Equals</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>Contains</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>Begins With</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>Ends With</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>Any</fullName>
+                <default>false</default>
+            </picklistValues>
+            <sorted>false</sorted>
+        </picklist>
+        <trackTrending>false</trackTrending>
+        <type>Picklist</type>
+    </fields>
+    <fields>
+        <fullName>Filter_Operation__c</fullName>
+        <deprecated>false</deprecated>
+        <externalId>false</externalId>
+        <label>Filter Operation</label>
+        <picklist>
+            <picklistValues>
+                <fullName>=</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>&lt;&gt;</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>&gt;</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>&lt;</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>&gt;=</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>&lt;=</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>in</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>not in</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>like</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>not like</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>includes</fullName>
+                <default>false</default>
+            </picklistValues>
+            <sorted>false</sorted>
+        </picklist>
+        <trackTrending>false</trackTrending>
+        <type>Picklist</type>
+    </fields>
+    <fields>
+        <fullName>Filter_Type__c</fullName>
+        <deprecated>false</deprecated>
+        <externalId>false</externalId>
+        <label>Filter Type</label>
+        <picklist>
+            <picklistValues>
+                <fullName>Field</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>SOQL</fullName>
+                <default>false</default>
+            </picklistValues>
+            <sorted>false</sorted>
+        </picklist>
+        <trackTrending>false</trackTrending>
+        <type>Picklist</type>
+    </fields>
+    <fields>
+        <fullName>Filter_Value__c</fullName>
+        <deprecated>false</deprecated>
+        <externalId>false</externalId>
+        <label>Filter Value</label>
+        <length>32768</length>
+        <trackTrending>false</trackTrending>
+        <type>LongTextArea</type>
+        <visibleLines>3</visibleLines>
+    </fields>
+    <fields>
+        <fullName>Negate_Criteria__c</fullName>
+        <defaultValue>false</defaultValue>
+        <deprecated>false</deprecated>
+        <externalId>false</externalId>
+        <label>Negate Criteria</label>
+        <trackTrending>false</trackTrending>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
+        <fullName>Query_Parameter__c</fullName>
+        <deprecated>false</deprecated>
+        <externalId>false</externalId>
+        <label>Query Parameter</label>
+        <referenceTo>Query_Parameter__c</referenceTo>
+        <relationshipLabel>Query Parameter Server Filters</relationshipLabel>
+        <relationshipName>Query_Parameter_Server_Filters</relationshipName>
+        <relationshipOrder>0</relationshipOrder>
+        <reparentableMasterDetail>false</reparentableMasterDetail>
+        <trackTrending>false</trackTrending>
+        <type>MasterDetail</type>
+        <writeRequiresMasterRead>false</writeRequiresMasterRead>
+    </fields>
+    <label>Query Parameter Server Filter</label>
+    <nameField>
+        <displayFormat>QPSF-{00000}</displayFormat>
+        <label>Query Parameter Server Filter Name</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <pluralLabel>Query Parameter Server Filters</pluralLabel>
+    <searchLayouts/>
+    <sharingModel>ControlledByParent</sharingModel>
+    <validationRules>
+        <fullName>Criteria_is_required</fullName>
+        <active>true</active>
+        <errorConditionFormula>ispickval(Criteria__c, &apos;&apos;)</errorConditionFormula>
+        <errorDisplayField>Criteria__c</errorDisplayField>
+        <errorMessage>Criteria is required.</errorMessage>
+    </validationRules>
+    <validationRules>
+        <fullName>Filter_Type_is_required</fullName>
+        <active>true</active>
+        <errorConditionFormula>ispickval(Filter_Type__c , &apos;&apos;)</errorConditionFormula>
+        <errorDisplayField>Filter_Type__c</errorDisplayField>
+        <errorMessage>Filter type is required.</errorMessage>
+    </validationRules>
+    <validationRules>
+        <fullName>Filter_operation_is_required_for_Field</fullName>
+        <active>true</active>
+        <errorConditionFormula>ispickval(Filter_Operation__c, &apos;&apos;) &amp;&amp; ispickval(Filter_Type__c, &apos;Field&apos;)</errorConditionFormula>
+        <errorMessage>Filter Operation is required for Filter Type = Field</errorMessage>
+    </validationRules>
+</CustomObject>

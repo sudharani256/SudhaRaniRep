@@ -1,0 +1,26 @@
+<apex:page controller="Summingdifference" >
+<apex:pageBlock >
+
+  <apex:pageBlockTable value="{!lws}" var="l">
+  <apex:column value="{!l.stage}" headerValue="Stage"/> 
+  <apex:column value="{!l.podb}"  >
+  <apex:facet name="header">Total Value (Previous Month )</apex:facet>
+  <apex:facet name="footer">
+  <apex:outputText value="{!df.podb}"></apex:outputText>
+  </apex:facet>
+  </apex:column>
+   <apex:column value="{!l.opdb}" headerValue="Total Value (Current Month) ">
+   <apex:facet name="footer">
+  <apex:outputText value="{!df.opdb}"></apex:outputText>
+  </apex:facet>
+  </apex:column>
+   
+  <apex:column value="{!l.dif}" headerValue="Difference">
+  <apex:facet name="footer">
+  <apex:outputText value="{!df.dif}"></apex:outputText>
+  </apex:facet>
+  </apex:column>
+  
+  </apex:pageBlockTable>
+  </apex:pageBlock>
+</apex:page>

@@ -1,0 +1,3 @@
+<apex:page controller="ReportinVF_simple_2"  showHeader="true">
+   <div> <analytics:reportChart reportId="{!reportidval}"  size="large"></analytics:reportChart></div>
+</apex:page>

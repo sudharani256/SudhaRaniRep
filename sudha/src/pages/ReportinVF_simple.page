@@ -1,0 +1,4 @@
+<apex:page standardController="Opportunity" extensions="ReportinVF_simple" >
+  <analytics:reportChart reportId="{!reportidval}"  size="large" filter="[{column:'STAGE_NAME',operator:'equals',value:'Closed Won'}]" ></analytics:reportChart>
+   <!--<apex:iframe src="/ReportorDashboardID?00O28000003H60m" scrolling="true" height="158px" width="100%"/>-->
+</apex:page>

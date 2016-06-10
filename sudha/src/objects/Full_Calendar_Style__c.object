@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionOverrides>
+        <actionName>Accept</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>CancelEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Clone</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Delete</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Edit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Follow</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>List</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>New</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>SaveEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Tab</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>View</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <compactLayoutAssignment>SYSTEM</compactLayoutAssignment>
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>A rule for styling full calendar events.</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>false</enableHistory>
+    <enableReports>false</enableReports>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <fields>
+        <fullName>Active__c</fullName>
+        <defaultValue>true</defaultValue>
+        <description>Is this style rule active?</description>
+        <externalId>false</externalId>
+        <inlineHelpText>Is this style rule active?</inlineHelpText>
+        <label>Active</label>
+        <trackTrending>false</trackTrending>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
+        <fullName>Background_Color__c</fullName>
+        <defaultValue>&apos;blue&apos;</defaultValue>
+        <description>The background color to apply to any event matching this rule</description>
+        <externalId>false</externalId>
+        <inlineHelpText>The background color to apply to any event matching this rule</inlineHelpText>
+        <label>Background Color</label>
+        <length>20</length>
+        <required>true</required>
+        <trackTrending>false</trackTrending>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Calendar__c</fullName>
+        <description>Which calendar is this style rule related to?</description>
+        <externalId>false</externalId>
+        <inlineHelpText>Which calendar is this style rule related to?</inlineHelpText>
+        <label>Calendar</label>
+        <referenceTo>Full_Calendar__c</referenceTo>
+        <relationshipLabel>Calendar Styles</relationshipLabel>
+        <relationshipName>Full_Calendar_Style</relationshipName>
+        <relationshipOrder>0</relationshipOrder>
+        <reparentableMasterDetail>false</reparentableMasterDetail>
+        <trackTrending>false</trackTrending>
+        <type>MasterDetail</type>
+        <writeRequiresMasterRead>false</writeRequiresMasterRead>
+    </fields>
+    <fields>
+        <fullName>Field_ID__c</fullName>
+        <description>The API name of the field on the source object this style rule will evaluate</description>
+        <externalId>false</externalId>
+        <inlineHelpText>The API name of the field on the source object this style rule will evaluate</inlineHelpText>
+        <label>Field ID</label>
+        <length>255</length>
+        <required>true</required>
+        <trackTrending>false</trackTrending>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Logical__c</fullName>
+        <description>What is the rule for this style rule?</description>
+        <externalId>false</externalId>
+        <inlineHelpText>What is the rule for this style rule?</inlineHelpText>
+        <label>Logical</label>
+        <picklist>
+            <picklistValues>
+                <fullName>Equal</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>Does not Equal</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>Greater Than</fullName>
+                <default>false</default>
+            </picklistValues>
+            <picklistValues>
+                <fullName>Less Than</fullName>
+                <default>false</default>
+            </picklistValues>
+            <sorted>false</sorted>
+        </picklist>
+        <trackTrending>false</trackTrending>
+        <type>Picklist</type>
+    </fields>
+    <fields>
+        <fullName>Priority__c</fullName>
+        <defaultValue>1</defaultValue>
+        <description>What priority does this rule have? The highest priority will be applied in the case of multiple applicable style rules.</description>
+        <externalId>false</externalId>
+        <inlineHelpText>What priority does this rule have? The highest priority will be applied in the case of multiple applicable style rules.</inlineHelpText>
+        <label>Priority</label>
+        <precision>2</precision>
+        <required>true</required>
+        <scale>0</scale>
+        <trackTrending>false</trackTrending>
+        <type>Number</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Value__c</fullName>
+        <description>What is the value that this logical condition must evaluate on the field?</description>
+        <externalId>false</externalId>
+        <inlineHelpText>What is the value that this logical condition must evaluate on the field?</inlineHelpText>
+        <label>Value</label>
+        <length>255</length>
+        <required>true</required>
+        <trackTrending>false</trackTrending>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <label>Full Calendar Style</label>
+    <nameField>
+        <displayFormat>FCS-{00000}</displayFormat>
+        <label>Full Calendar Style</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <pluralLabel>Full Calendar Style</pluralLabel>
+    <searchLayouts/>
+    <sharingModel>ControlledByParent</sharingModel>
+</CustomObject>

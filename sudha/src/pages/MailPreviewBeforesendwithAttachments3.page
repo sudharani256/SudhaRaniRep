@@ -1,0 +1,36 @@
+<apex:page controller="MailPreviewBeforesendwithAttachments3" sidebar="false">
+<apex:form style="width: 70%; margin-left: 15%;">
+      <apex:pageMessages ></apex:pageMessages>
+      <apex:actionRegion >
+      <apex:pageBlock title="Email">
+       <apex:pageblocktable id="allemailtemps" value="{!EventEmailTemplatelist}" var="allcon">
+                    <apex:column headervalue="Header_for_Choosing_Email_Templates">                    
+                       <apex:actionsupport action="{!ChooseEmailTemplate}" event="onclick" rerender="allemailtemps">
+                       <!---consel,allcons,outtxt">  -->
+                        <input type="radio" />                    
+                            <apex:param name="conid" value="{!allcon.Id}">
+                        </apex:param></apex:actionsupport>                            
+                    </apex:column>    
+                    <apex:column headervalue="{!$objecttype.EmailTemplate.fields.name.label}">
+                        <apex:outputfield value="{!allcon.Name}">
+                    </apex:outputfield></apex:column> 
+                     
+                </apex:pageblocktable>
+                 <apex:commandButton value="Label_On_Button_for_further_process_after_template_choosing" action="{!ChooseEmailTemplate}" status="status"/>
+ </apex:pageBlock>
+ </apex:actionRegion>
+               <apex:pageBlock title="Email">  
+          TO::<apex:inputText style="width:100%" value="{!emailVal}"/><br>
+          CC::<apex:inputText style="width:100%" value="{!cc}"/> </br><br>
+          Subject::<apex:inputText style="width:100%" value="{!emailSubject}"/></br><br>
+          Attachment::<apex:inputFile value="{!att.body}" fileName="{!att.name}"/>
+          <apex:commandButton title="Upload" action="{!upload}" value="Upload"/><BR/>
+          <apex:repeat value="{!attList}" var="att">
+              {!att.Name}<br/>
+          </apex:repeat>
+          <br/>BODY::</br><br>
+            <apex:inputTextarea style="height:300px; width:100%" value="{!body}"/></br>
+          <apex:commandButton value="Send Mail" action="{!sendMail}"/>
+      </apex:pageBlock>
+</apex:form>
+</apex:page>
